@@ -93,7 +93,7 @@ pub fn create_read_slice<T, O>(
 where
     O: PartialEq,
 {
-    create_memo(cx, move |_| signal.with(getter)).into()
+    create_memo(move |_| signal.with(getter)).into()
 }
 
 /// Creates a setter to access one slice of a signal. This is equivalent to the
@@ -104,5 +104,5 @@ pub fn create_write_slice<T, O>(
     setter: impl Fn(&mut T, O) + Clone + Copy + 'static,
 ) -> SignalSetter<O> {
     let setter = move |value| signal.update(|x| setter(x, value));
-    setter.mapped_signal_setter(cx)
+    setter.mapped_signal_setter()
 }

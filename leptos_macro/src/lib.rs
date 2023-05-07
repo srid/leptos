@@ -401,30 +401,14 @@ fn normalized_call_site(site: proc_macro::Span) -> Option<String> {
 #[proc_macro]
 pub fn template(tokens: TokenStream) -> TokenStream {
     if cfg!(feature = "csr") {
-        let tokens: proc_macro2::TokenStream = tokens.into();
-        let mut tokens = tokens.into_iter();
-        let (cx, comma) = (tokens.next(), tokens.next());
-        match (cx, comma) {
-            (Some(TokenTree::Ident(cx)), Some(TokenTree::Punct(punct)))
-                if punct.as_char() == ',' =>
-            {
-                match parse(tokens.collect::<proc_macro2::TokenStream>().into())
-                {
-                    Ok(nodes) => render_template(
-                        &proc_macro2::Ident::new(&cx.to_string(), cx.span()),
-                        &nodes,
-                    ),
-                    Err(error) => error.to_compile_error(),
-                }
-                .into()
-            }
-            _ => {
-                abort_call_site!(
-                    "view! macro needs a context and RSX: e.g., view! {{ cx, \
-                     <div>...</div> }}"
-                )
-            }
+        match parse(tokens)
+        {
+            Ok(nodes) => render_template(
+                &nodes,
+            ),
+            Err(error) => error.to_compile_error(),
         }
+        .into()
     } else {
         view(tokens)
     }

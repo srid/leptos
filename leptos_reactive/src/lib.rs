@@ -103,7 +103,7 @@ pub use hydration::FragmentData;
 pub use memo::*;
 pub use resource::*;
 use runtime::*;
-pub use runtime::{create_runtime, RuntimeId};
+pub use runtime::{create_runtime, RuntimeId, untrack};
 pub use scope::*;
 pub use selector::*;
 pub use serialization::*;
