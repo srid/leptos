@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use crate::{with_runtime, Scope, Runtime};
+use crate::{with_runtime, Scope, Runtime, ScopeProperty, node::{ReactiveNode, ReactiveNodeState, ReactiveNodeType}};
 use cfg_if::cfg_if;
 use std::{any::Any, cell::RefCell, marker::PhantomData, rc::Rc};
 
@@ -66,7 +66,7 @@ where
         if #[cfg(not(feature = "ssr"))] {
             let runtime = Runtime::current();
             let e = runtime.create_effect(f);
-            crate::macros::debug_warn!("creating effect {e:?}");
+            //crate::macros::debug_warn!("creating effect {e:?}");
             with_runtime(runtime, |runtime| {
                 runtime.update_if_necessary(e);
             });
@@ -122,7 +122,7 @@ pub fn create_isomorphic_effect<T>(
 {
     let runtime = Runtime::current();
     let e = runtime.create_effect(f);
-    crate::macros::debug_warn!("creating effect {e:?}");
+    //crate::macros::debug_warn!("creating effect {e:?}");
     with_runtime(runtime, |runtime| {
         runtime.update_if_necessary(e);
     });
@@ -147,12 +147,29 @@ pub fn create_root<T>(f: impl Fn(Option<T>) -> T + 'static)
 where
     T: 'static,
 {
-    let runtime = Runtime::current();
-    let e = runtime.create_effect(f);
-    crate::macros::debug_warn!("creating root {e:?}");
-    with_runtime(runtime, |runtime| {
-        runtime.update_if_necessary(e);
-    });
+    #[cfg(debug_assertions)]
+    let defined_at = std::panic::Location::caller();
+
+    let runtime_id = Runtime::current();
+
+    with_runtime(runtime_id, |runtime| {
+        let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
+            value: Some(Rc::new(RefCell::new(None::<T>))),
+            state: ReactiveNodeState::Dirty,
+            node_type: ReactiveNodeType::Effect {
+                f: Rc::new(Effect {
+                    f,
+                    ty: PhantomData,
+                    #[cfg(debug_assertions)]
+                    defined_at
+                }),
+            },
+        });
+        // root is the owner, but it's not a reactive observer
+        runtime.owner.set(Some(id));
+        runtime.observer.set(None);
+        runtime.update_if_necessary(id);
+    }).expect("tried to create a root in a runtime that has been disposed")
 }
 
 #[doc(hidden)]

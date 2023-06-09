@@ -59,7 +59,7 @@ where
     IF: Fn() -> I + 'static,
     I: IntoIterator<Item = T>,
     EF: Fn(T) -> N + 'static,
-    N: IntoView,
+    N: IntoView + 'static,
     KF: Fn(&T) -> K + 'static,
     K: Eq + Hash + 'static,
     T: 'static,

@@ -1,11 +1,13 @@
 #![forbid(unsafe_code)]
 use crate::{
     hydration::SharedContext,
-    node::{NodeId, ReactiveNode, ReactiveNodeState, ReactiveNodeType},
+    node::{
+        Disposer, NodeId, ReactiveNode, ReactiveNodeState, ReactiveNodeType,
+    },
     AnyComputation, AnyResource, Effect, Memo, MemoState, ReadSignal,
     ResourceId, ResourceState, RwSignal, Scope, ScopeDisposer, ScopeId,
-    ScopeProperty, SerializableResource, StoredValueId, Trigger,
-    UnserializableResource, WriteSignal, SpecialNonReactiveZone,
+    ScopeProperty, SerializableResource, SpecialNonReactiveZone, StoredValueId,
+    Trigger, UnserializableResource, WriteSignal, create_trigger,
 };
 use cfg_if::cfg_if;
 use core::hash::BuildHasherDefault;
@@ -88,7 +90,7 @@ impl Runtime {
     #[cfg(not(any(feature = "csr", feature = "hydrate")))]
     #[inline(always)]
     pub(crate) fn set_runtime(id: Option<RuntimeId>) {
-         CURRENT_RUNTIME.with(|curr| curr.set(id))
+        CURRENT_RUNTIME.with(|curr| curr.set(id))
     }
 
     pub(crate) fn update_if_necessary(&self, node_id: NodeId) {
@@ -118,25 +120,7 @@ impl Runtime {
 
         // if we're dirty at this point, update
         if self.current_state(node_id) >= ReactiveNodeState::Dirty {
-            // first, run our cleanups, if any
-            if let Some(cleanups) =
-                self.on_cleanups.borrow_mut().remove(node_id)
-            {
-                for cleanup in cleanups {
-                    cleanup();
-                }
-            }
-
-            // dispose of any of our properties
-            let properties =
-                { self.node_properties.borrow_mut().remove(node_id) };
-            if let Some(properties) = properties {
-                let mut nodes = self.nodes.borrow_mut();
-                let mut cleanups = self.on_cleanups.borrow_mut();
-                for property in properties {
-                    self.cleanup_property(property, &mut nodes, &mut cleanups);
-                }
-            }
+            self.cleanup_node(node_id);
 
             // now, update the value
             self.update(node_id);
@@ -144,6 +128,28 @@ impl Runtime {
 
         // now we're clean
         self.mark_clean(node_id);
+    }
+
+    pub(crate) fn cleanup_node(&self, node_id: NodeId) {
+        // first, run our cleanups, if any
+        if let Some(cleanups) =
+            self.on_cleanups.borrow_mut().remove(node_id)
+        {
+            for cleanup in cleanups {
+                cleanup();
+            }
+        }
+
+        // dispose of any of our properties
+        let properties =
+            { self.node_properties.borrow_mut().remove(node_id) };
+        if let Some(properties) = properties {
+            let mut nodes = self.nodes.borrow_mut();
+            let mut cleanups = self.on_cleanups.borrow_mut();
+            for property in properties {
+                self.cleanup_property(property, &mut nodes, &mut cleanups);
+            }
+        }
     }
 
     pub(crate) fn update(&self, node_id: NodeId) {
@@ -566,6 +572,52 @@ slotmap::new_key_type! {
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RuntimeId;
 
+/// Wraps the given function so that, whenever it is called, it sets
+/// the reactive owner to be whichever reactive node was the owner
+/// when it was created.
+///
+/// This can be used to hoist children created inside an effect up to
+/// the level of a higher parent, to prevent each one from being disposed
+/// every time the effect within which they're created is run.
+///
+/// For example, each row in a `<For/>` component could be created using this,
+/// so that they are owned by the `<For/>` component itself, not an effect
+/// running within it.
+pub fn with_current_owner<T, U>(
+    f: impl Fn(T) -> U + 'static,
+) -> impl Fn(T) -> (U, Disposer) where T: 'static {
+    let runtime_id = Runtime::current();
+    let owner = with_runtime(runtime_id, |runtime| runtime.owner.get()).expect("runtime should be alive when created");
+    move |t| {
+        with_runtime(runtime_id, |runtime| {
+            let prev_observer = runtime.observer.take();
+            let prev_owner = runtime.owner.take();
+
+            runtime.owner.set(owner);
+            runtime.observer.set(owner);
+
+            let id = runtime.nodes.borrow_mut().insert(ReactiveNode {
+                value: None,
+                state: ReactiveNodeState::Clean,
+                node_type: ReactiveNodeType::Trigger,
+            });
+            runtime.push_scope_property(ScopeProperty::Trigger(id));
+            let disposer = Disposer((runtime_id, id));
+
+            runtime.owner.set(Some(id));
+            runtime.observer.set(Some(id));
+
+            let v = f(t);
+
+            runtime.observer.set(prev_observer);
+            runtime.owner.set(prev_owner);
+
+            (v, disposer)
+        })
+        .expect("runtime should be alive when run")
+    }
+}
+
 impl RuntimeId {
     // TODO remove this
     /// Removes the runtime, disposing all its child [`Scope`](crate::Scope)s.
@@ -932,62 +984,61 @@ impl std::hash::Hash for Runtime {
     }
 }
 
-    /// Suspends reactive tracking while running the given function.
-    ///
-    /// This can be used to isolate parts of the reactive graph from one another.
-    ///
-    /// ```
-    /// # use leptos_reactive::*;
-    /// # run_scope(create_runtime(), |cx| {
-    /// let (a, set_a) = create_signal(cx, 0);
-    /// let (b, set_b) = create_signal(cx, 0);
-    /// let c = create_memo(cx, move |_| {
-    ///     // this memo will *only* update when `a` changes
-    ///     a() + cx.untrack(move || b())
-    /// });
-    ///
-    /// assert_eq!(c(), 0);
-    /// set_a(1);
-    /// assert_eq!(c(), 1);
-    /// set_b(1);
-    /// // hasn't updated, because we untracked before reading b
-    /// assert_eq!(c(), 1);
-    /// set_a(2);
-    /// assert_eq!(c(), 3);
-    ///
-    /// # });
-    /// ```
-    #[cfg_attr(
-        any(debug_assertions, features = "ssr"),
-        instrument(level = "trace", skip_all,)
-    )]
-    #[inline(always)]
-    pub fn untrack<T>(f: impl FnOnce() -> T) -> T {
-        let runtime_id = Runtime::current();
-        with_runtime(runtime_id, |runtime| {
-            let untracked_result;
+/// Suspends reactive tracking while running the given function.
+///
+/// This can be used to isolate parts of the reactive graph from one another.
+///
+/// ```
+/// # use leptos_reactive::*;
+/// # run_scope(create_runtime(), |cx| {
+/// let (a, set_a) = create_signal(cx, 0);
+/// let (b, set_b) = create_signal(cx, 0);
+/// let c = create_memo(cx, move |_| {
+///     // this memo will *only* update when `a` changes
+///     a() + cx.untrack(move || b())
+/// });
+///
+/// assert_eq!(c(), 0);
+/// set_a(1);
+/// assert_eq!(c(), 1);
+/// set_b(1);
+/// // hasn't updated, because we untracked before reading b
+/// assert_eq!(c(), 1);
+/// set_a(2);
+/// assert_eq!(c(), 3);
+///
+/// # });
+/// ```
+#[cfg_attr(
+    any(debug_assertions, features = "ssr"),
+    instrument(level = "trace", skip_all,)
+)]
+#[inline(always)]
+pub fn untrack<T>(f: impl FnOnce() -> T) -> T {
+    let runtime_id = Runtime::current();
+    with_runtime(runtime_id, |runtime| {
+        let untracked_result;
 
-            SpecialNonReactiveZone::enter();
+        SpecialNonReactiveZone::enter();
 
-            let prev_observer =
-                SetObserverOnDrop(runtime_id, runtime.observer.take());
+        let prev_observer =
+            SetObserverOnDrop(runtime_id, runtime.observer.take());
 
-            untracked_result = f();
+        untracked_result = f();
 
-            runtime.observer.set(prev_observer.1);
-            std::mem::forget(prev_observer); // avoid Drop
+        runtime.observer.set(prev_observer.1);
+        std::mem::forget(prev_observer); // avoid Drop
 
-            SpecialNonReactiveZone::exit();
+        SpecialNonReactiveZone::exit();
 
-            untracked_result
-        })
-        .expect(
-            "tried to run untracked function in a runtime that has been \
-             disposed",
-        )
-    }
+        untracked_result
+    })
+    .expect(
+        "tried to run untracked function in a runtime that has been disposed",
+    )
+}
 
-    struct SetObserverOnDrop(RuntimeId, Option<NodeId>);
+struct SetObserverOnDrop(RuntimeId, Option<NodeId>);
 
 impl Drop for SetObserverOnDrop {
     fn drop(&mut self) {

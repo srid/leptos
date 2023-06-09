@@ -1,7 +1,7 @@
 #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use crate::hydration::HydrationKey;
 use crate::{hydration::HydrationCtx, Comment, CoreComponent, IntoView, View};
-use leptos_reactive::Scope;
+use leptos_reactive::Disposer;
 use std::{borrow::Cow, cell::RefCell, fmt, hash::Hash, ops::Deref, rc::Rc};
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use web::*;
@@ -167,6 +167,7 @@ impl Mountable for EachRepr {
 /// The internal representation of an [`Each`] item.
 #[derive(PartialEq, Eq)]
 pub(crate) struct EachItem {
+    disposer: Disposer,
     #[cfg(all(target_arch = "wasm32", feature = "web"))]
     document_fragment: Option<web_sys::DocumentFragment>,
     #[cfg(debug_assertions)]
@@ -192,7 +193,7 @@ impl fmt::Debug for EachItem {
 }
 
 impl EachItem {
-    fn new(child: View) -> Self {
+    fn new(disposer: Disposer, child: View) -> Self {
         let id = HydrationCtx::id();
         let needs_closing = !matches!(child, View::Element(_));
 
@@ -237,6 +238,7 @@ impl EachItem {
         };
 
         Self {
+            disposer,
             #[cfg(all(target_arch = "wasm32", feature = "web"))]
             document_fragment,
             #[cfg(debug_assertions)]
@@ -342,7 +344,7 @@ where
     IF: Fn() -> I + 'static,
     I: IntoIterator<Item = T>,
     EF: Fn(T) -> N + 'static,
-    N: IntoView,
+    N: IntoView + 'static,
     KF: Fn(&T) -> K + 'static,
     K: Eq + Hash + 'static,
     T: 'static,
@@ -366,6 +368,8 @@ where
         #[cfg(all(target_arch = "wasm32", feature = "web"))]
         let (children, closing) =
             (component.children.clone(), component.closing.node.clone());
+
+        let each_fn = with_current_owner(each_fn);
 
         cfg_if::cfg_if! {
           if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
@@ -438,8 +442,8 @@ where
 
                 for item in items_iter {
                   hashed_items.insert(key_fn(&item));
-                  // todo check scope handling here
-                  let each_item = EachItem::new(each_fn(item).into_view());
+                  let (child, disposer) = each_fn(item);
+                  let each_item = EachItem::new(disposer, child.into_view());
                 #[cfg(all(target_arch = "wasm32", feature = "web"))]
                 {
                   _ = fragment.append_child(&each_item.get_mountable_node());
@@ -461,17 +465,15 @@ where
         #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
         {
             *component.children.borrow_mut() = (items_fn)()
-                .into_iter()
-                .map(|child| {
-                    cx.run_child_scope(|cx| {
-                        Some(EachItem::new(
-                            cx,
-                            (each_fn)(cx, child).into_view(cx),
-                        ))
-                    })
-                    .0
-                })
-                .collect();
+              .into_iter()
+              .map(|child| {
+                let (item, disposer) = each_fn(child);
+                Some(EachItem::new(disposer, item.into_view()))
+              })
+              // todo check scope disposal here
+              //.map(|child| cx.run_child_scope(|cx| Some(EachItem::new((each_fn)(child).into_view()))).0)
+              .collect();
+          }
         }
 
         View::CoreComponent(CoreComponent::Each(component))
@@ -780,7 +782,7 @@ fn apply_cmds<T, EF, N>(
     mut items: Vec<Option<T>>,
     each_fn: &EF,
 ) where
-    EF: Fn(T) -> N,
+    EF: Fn(T) -> (N, Disposer),
     N: IntoView,
 {
     let range = RANGE.with(|range| (*range).clone());
