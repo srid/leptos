@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use crate::{with_runtime, RuntimeId, Scope, ScopeProperty};
+use crate::{with_runtime, Runtime, RuntimeId, Scope, ScopeProperty};
 use std::{
     cell::RefCell,
     fmt,

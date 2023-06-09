@@ -524,7 +524,7 @@ fn element_to_tokens_ssr(
                         // Keep invalid blocks for faster IDE diff (on user type)
                         Node::Block(block @ NodeBlock::Invalid { .. }) => {
                             chunks.push(SsrElementChunks::View(quote! {
-                                {#block}.into_view(#cx)
+                                {#block}.into_view()
                             }));
                         }
                         Node::Fragment(_) => abort!(
@@ -585,7 +585,7 @@ fn attribute_to_tokens_ssr<'a>(
             && attr.value().and_then(value_to_string).is_none()
         {
             let span = attr.key.span();
-            proc_macro_error::emit_error!(span, "Combining a global class (view! { cx, class = ... }) \
+            proc_macro_error::emit_error!(span, "Combining a global class (view! { class = ... }) \
             and a dynamic `class=` attribute on an element causes runtime inconsistencies. You can \
             toggle individual classes dynamically with the `class:name=value` syntax. \n\nSee this issue \
             for more information and an example: https://github.com/leptos-rs/leptos/issues/773")
@@ -1464,7 +1464,7 @@ pub(crate) fn slot_to_tokens(
                     .children({
                         #(#clonables)*
 
-                        move |#cx, #(#bindables)*| #children #view_marker
+                        move |#(#bindables)*| #children #view_marker
                     })
                 }
             } else {
@@ -1615,7 +1615,7 @@ pub(crate) fn component_to_tokens(
                     .children({
                         #(#clonables)*
 
-                        move |#cx, #(#bindables)*| #children #view_marker
+                        move |#(#bindables)*| #children #view_marker
                     })
                 }
             } else {
@@ -2072,7 +2072,7 @@ impl IdeTagHelper {
     ///
     /// ```no_build
     /// if false {
-    ///     close_tag(cx, unreachable!())
+    ///     close_tag(unreachable!())
     /// }
     /// else {
     ///     open_tag(open_tag.props().slots().children().build())

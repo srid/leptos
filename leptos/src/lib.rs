@@ -130,7 +130,7 @@
 //! }
 //!
 //! pub fn main() {
-//!     mount_to_body(|cx| view! {   <SimpleCounter initial_value=3 /> })
+//!     mount_to_body(|| view! {   <SimpleCounter initial_value=3 /> })
 //! }
 //! # }
 //! ```
@@ -265,13 +265,13 @@ impl PropsOrNoPropsBuilder for EmptyPropsBuilder {
 }
 
 impl<F, R> Component<EmptyPropsBuilder> for F where
-    F: FnOnce(::leptos::Scope) -> R
+    F: FnOnce() -> R
 {
 }
 
 impl<P, F, R> Component<P> for F
 where
-    F: FnOnce(::leptos::Scope, P) -> R,
+    F: FnOnce(P) -> R,
     P: Props,
 {
 }
@@ -286,34 +286,33 @@ pub fn component_props_builder<P: PropsOrNoPropsBuilder>(
 #[doc(hidden)]
 pub fn component_view<P>(
     f: impl ComponentConstructor<P>,
-    cx: Scope,
     props: P,
 ) -> View {
-    f.construct(cx, props)
+    f.construct(props)
 }
 
 #[doc(hidden)]
 pub trait ComponentConstructor<P> {
-    fn construct(self, cx: Scope, props: P) -> View;
+    fn construct(self, props: P) -> View;
 }
 
 impl<Func, V> ComponentConstructor<()> for Func
 where
-    Func: FnOnce(Scope) -> V,
+    Func: FnOnce() -> V,
     V: IntoView,
 {
-    fn construct(self, cx: Scope, (): ()) -> View {
-        (self)(cx).into_view(cx)
+    fn construct(self, (): ()) -> View {
+        (self)().into_view()
     }
 }
 
 impl<Func, V, P> ComponentConstructor<P> for Func
 where
-    Func: FnOnce(Scope, P) -> V,
+    Func: FnOnce(P) -> V,
     V: IntoView,
     P: PropsOrNoPropsBuilder,
 {
-    fn construct(self, cx: Scope, props: P) -> View {
-        (self)(cx, props).into_view(cx)
+    fn construct(self, props: P) -> View {
+        (self)(props).into_view()
     }
 }

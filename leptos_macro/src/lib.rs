@@ -312,71 +312,57 @@ mod template;
 pub fn view(tokens: TokenStream) -> TokenStream {
     let tokens: proc_macro2::TokenStream = tokens.into();
     let mut tokens = tokens.into_iter();
-    let (cx, comma) = (tokens.next(), tokens.next());
 
-    match (cx, comma) {
-        (Some(TokenTree::Ident(cx)), Some(TokenTree::Punct(punct)))
-            if punct.as_char() == ',' =>
+    let first = tokens.next();
+    let second = tokens.next();
+    let third = tokens.next();
+    let fourth = tokens.next();
+    let global_class = match (&first, &second) {
+        (Some(TokenTree::Ident(first)), Some(TokenTree::Punct(eq)))
+            if *first == "class" && eq.as_char() == '=' =>
         {
-            let first = tokens.next();
-            let second = tokens.next();
-            let third = tokens.next();
-            let fourth = tokens.next();
-            let global_class = match (&first, &second) {
-                (Some(TokenTree::Ident(first)), Some(TokenTree::Punct(eq)))
-                    if *first == "class" && eq.as_char() == '=' =>
+            match &fourth {
+                Some(TokenTree::Punct(comma))
+                    if comma.as_char() == ',' =>
                 {
-                    match &fourth {
-                        Some(TokenTree::Punct(comma))
-                            if comma.as_char() == ',' =>
-                        {
-                            third.clone()
-                        }
-                        _ => {
-                            abort!(
-                                punct, "To create a scope class with the view! macro you must put a comma `,` after the value";
-                                help = r#"e.g., view!{cx, class="my-class", <div>...</div>}"#
-                            )
-                        }
-                    }
+                    third.clone()
                 }
-                _ => None,
-            };
-            let tokens = if global_class.is_some() {
-                tokens.collect::<proc_macro2::TokenStream>()
-            } else {
-                [first, second, third, fourth]
-                    .into_iter()
-                    .flatten()
-                    .chain(tokens)
-                    .collect()
-            };
-            let config = rstml::ParserConfig::default().recover_block(true);
-            let parser = rstml::Parser::new(config);
-            let (nodes, errors) = parser.parse_recoverable(tokens).split_vec();
-            let errors = errors.into_iter().map(|e| e.emit_as_expr_tokens());
-            let nodes_output = render_view(
-                &cx,
-                &nodes,
-                Mode::default(),
-                global_class.as_ref(),
-                normalized_call_site(proc_macro::Span::call_site()),
-            );
-            quote! {
-                {
-                    #(#errors;)*
-                    #nodes_output
+                _ => {
+                    abort!(
+                        second, "To create a scope class with the view! macro you must put a comma `,` after the value";
+                        help = r#"e.g., view!{ class="my-class", <div>...</div>}"#
+                    )
                 }
             }
-            .into()
         }
-        _ => {
-            abort_call_site!(
-                "view! macro needs a context and RSX: e.g., view! {{ cx, \
-                 <div>...</div> }}"
-            )
+        _ => None,
+    };
+    let tokens = if global_class.is_some() {
+        tokens.collect::<proc_macro2::TokenStream>()
+    } else {
+        [first, second, third, fourth]
+            .into_iter()
+            .flatten()
+            .chain(tokens)
+            .collect()
+    };
+    let config = rstml::ParserConfig::default().recover_block(true);
+    let parser = rstml::Parser::new(config);
+    let (nodes, errors) = parser.parse_recoverable(tokens).split_vec();
+    let errors = errors.into_iter().map(|e| e.emit_as_expr_tokens());
+    let nodes_output = render_view(
+        &nodes,
+        Mode::default(),
+        global_class.as_ref(),
+        normalized_call_site(proc_macro::Span::call_site()),
+    );
+    quote! {
+        {
+            #(#errors;)*
+            #nodes_output
         }
     }
+    .into()
 }
 
 fn normalized_call_site(site: proc_macro::Span) -> Option<String> {

@@ -2,7 +2,7 @@
 use crate::{
     create_effect, create_isomorphic_effect, create_memo, create_signal,
     queue_microtask,
-    runtime::{with_runtime, RuntimeId},
+    runtime::{with_runtime, Runtime, RuntimeId},
     serialization::Serializable,
     spawn::spawn_local,
     use_context, GlobalSuspenseContext, Memo, ReadSignal, Scope, ScopeProperty,
@@ -494,7 +494,7 @@ where
         instrument(level = "info", skip_all,)
     )]
     #[track_caller]
-    pub fn with<U>(&self, cx: Scope, f: impl FnOnce(&T) -> U) -> Option<U> {
+    pub fn with<U>(&self, f: impl FnOnce(&T) -> U) -> Option<U> {
         let location = std::panic::Location::caller();
         with_runtime(self.runtime, |runtime| {
             runtime.resource(self.id, |resource: &ResourceState<S, T>| {
@@ -810,7 +810,7 @@ where
         location: &'static Location<'static>,
     ) -> Option<U> {
         let global_suspense_cx = use_context::<GlobalSuspenseContext>();
-        let suspense_cx = use_context::<SuspenseContext>(cx);
+        let suspense_cx = use_context::<SuspenseContext>();
 
         let v = self
             .value

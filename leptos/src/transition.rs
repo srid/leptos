@@ -111,7 +111,7 @@ where
                 }
             })
             .children(Box::new(move || {
-                let frag = children();
+                let frag = children().into_view();
 
                 let suspense_context = use_context::<SuspenseContext>()
                     .expect("there to be a SuspenseContext");

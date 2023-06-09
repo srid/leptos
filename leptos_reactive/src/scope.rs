@@ -285,7 +285,6 @@ impl Scope {
         instrument(level = "trace", skip_all,)
     )]
     pub fn register_suspense(
-        &self,
         context: SuspenseContext,
         key: &str,
         out_of_order_resolver: impl FnOnce() -> String + 'static,
@@ -294,7 +293,7 @@ impl Scope {
         use crate::create_isomorphic_effect;
         use futures::StreamExt;
 
-        _ = with_runtime(self.runtime, |runtime| {
+        _ = with_runtime(Runtime::current(), |runtime| {
             let mut shared_context = runtime.shared_context.borrow_mut();
             let (tx1, mut rx1) = futures::channel::mpsc::unbounded();
             let (tx2, mut rx2) = futures::channel::mpsc::unbounded();

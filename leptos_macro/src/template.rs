@@ -307,7 +307,7 @@ fn attr_to_tokens(
         let value = attribute_value(node);
 
         expressions.push(quote_spanned! {
-            span => leptos::leptos_dom::property(#leptos::wasm_bindgen::JsCast::unchecked_ref(&#el_id), #name, #value.into_property())
+            span => leptos::leptos_dom::property(leptos::wasm_bindgen::JsCast::unchecked_ref(&#el_id), #name, #value.into_property())
         });
     }
     // Classes
@@ -391,7 +391,6 @@ fn child_to_tokens(
             }
         }
         Node::Text(node) => block_to_tokens(
-            cx,
             Either::Left(node.value_string()),
             node.value.span(),
             parent,
@@ -433,7 +432,6 @@ fn child_to_tokens(
             )
         }
         Node::Block(b @ NodeBlock::Invalid { .. }) => block_to_tokens(
-            cx,
             Either::Right(b.into_token_stream()),
             b.span(),
             parent,

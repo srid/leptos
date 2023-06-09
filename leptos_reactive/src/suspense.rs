@@ -32,7 +32,7 @@ pub struct GlobalSuspenseContext(Rc<RefCell<SuspenseContext>>);
 impl GlobalSuspenseContext {
     /// Creates an empty global suspense context.
     pub fn new(cx: Scope) -> Self {
-        Self(Rc::new(RefCell::new(SuspenseContext::new(cx))))
+        Self(Rc::new(RefCell::new(SuspenseContext::new())))
     }
 
     /// Runs a function with a reference to the underlying suspense context.
@@ -43,7 +43,7 @@ impl GlobalSuspenseContext {
     /// Runs a function with a reference to the underlying suspense context.
     pub fn reset(&self, cx: Scope) {
         let mut inner = self.0.borrow_mut();
-        _ = std::mem::replace(&mut *inner, SuspenseContext::new(cx));
+        _ = std::mem::replace(&mut *inner, SuspenseContext::new());
     }
 }
 
@@ -68,7 +68,7 @@ impl SuspenseContext {
         let (tx, mut rx) = futures::channel::mpsc::channel(1);
         let tx = RefCell::new(tx);
         queue_microtask(move || {
-            create_isomorphic_effect(cx, move |_| {
+            create_isomorphic_effect(move |_| {
                 if pending_resources.get() == 0 {
                     _ = tx.borrow_mut().try_send(());
                 }

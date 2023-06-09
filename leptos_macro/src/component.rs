@@ -219,16 +219,16 @@ impl ToTokens for Model {
         let into_view = if no_props {
             quote! {
                 impl #impl_generics ::leptos::IntoView for #props_name #generics #where_clause {
-                    fn into_view(self, cx: ::leptos::Scope) -> ::leptos::View {
-                        #name(cx).into_view(cx)
+                    fn into_view(self) -> ::leptos::View {
+                        #name().into_view()
                     }
                 }
             }
         } else {
             quote! {
                 impl #impl_generics ::leptos::IntoView for #props_name #generics #where_clause {
-                    fn into_view(self, cx: ::leptos::Scope) -> ::leptos::View {
-                        #name(cx, self).into_view(cx)
+                    fn into_view(self) -> ::leptos::View {
+                        #name(self).into_view()
                     }
                 }
             }
@@ -259,8 +259,6 @@ impl ToTokens for Model {
             #[allow(non_snake_case, clippy::too_many_arguments)]
             #tracing_instrument_attr
             #vis fn #name #impl_generics (
-                #[allow(unused_variables)]
-                #scope_name: ::leptos::Scope,
                 #props_arg
             ) #ret #(+ #lifetimes)*
             #where_clause
@@ -356,9 +354,9 @@ impl Docs {
         let mut view_code_fence_state = ViewCodeFenceState::Outside;
         // todo fix docs stuff
         const RUST_START: &str =
-            "# ::leptos::create_scope(::leptos::create_runtime(), |cx| {";
+            "# ::leptos::create_scope(::leptos::create_runtime(), || {";
         const RUST_END: &str = "# }).dispose();";
-        const RSX_START: &str = "# ::leptos::view! {cx,";
+        const RSX_START: &str = "# ::leptos::view! {";
         const RSX_END: &str = "# };}).dispose();";
 
         // Seperated out of chain to allow rustfmt to work
