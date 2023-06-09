@@ -45,22 +45,22 @@ use std::{
 /// }
 ///
 /// // a signal that controls how many cat pics we want
-/// let (how_many_cats, set_how_many_cats) = create_signal(cx, 1);
+/// let (how_many_cats, set_how_many_cats) = create_signal(1);
 ///
 /// // create a resource that will refetch whenever `how_many_cats` changes
 /// # // `csr`, `hydrate`, and `ssr` all have issues here
 /// # // because we're not running in a browser or in Tokio. Let's just ignore it.
 /// # if false {
-/// let cats = create_resource(cx, move || how_many_cats.get(), fetch_cat_picture_urls);
+/// let cats = create_resource(move || how_many_cats.get(), fetch_cat_picture_urls);
 ///
 /// // when we read the signal, it contains either
 /// // 1) None (if the Future isn't ready yet) or
 /// // 2) Some(T) (if the future's already resolved)
-/// assert_eq!(cats.read(cx), Some(vec!["1".to_string()]));
+/// assert_eq!(cats.read(), Some(vec!["1".to_string()]));
 ///
 /// // when the signal's value changes, the `Resource` will generate and run a new `Future`
 /// set_how_many_cats.set(2);
-/// assert_eq!(cats.read(cx), Some(vec!["2".to_string()]));
+/// assert_eq!(cats.read(), Some(vec!["2".to_string()]));
 /// # }
 /// # }).dispose();
 /// ```
@@ -261,7 +261,7 @@ where
 /// // create the resource; it will run but not be serialized
 /// # if cfg!(not(any(feature = "csr", feature = "hydrate"))) {
 /// let result =
-///     create_local_resource(cx, move || (), |_| setup_complicated_struct());
+///     create_local_resource(move || (), |_| setup_complicated_struct());
 /// # }
 /// # }).dispose();
 /// ```
@@ -277,7 +277,6 @@ where
     )
 )]
 pub fn create_local_resource<S, T, Fu>(
-    cx: Scope,
     source: impl Fn() -> S + 'static,
     fetcher: impl Fn(S) -> Fu + 'static,
 ) -> Resource<S, T>
@@ -358,7 +357,6 @@ where
         move |_| r.load(false)
     });
 
-
     Resource {
         runtime,
         id,
@@ -370,8 +368,11 @@ where
 }
 
 #[cfg(not(feature = "hydrate"))]
-fn load_resource<S, T>(_runtime: RuntimeId, _id: ResourceId, r: Rc<ResourceState<S, T>>)
-where
+fn load_resource<S, T>(
+    _runtime: RuntimeId,
+    _id: ResourceId,
+    r: Rc<ResourceState<S, T>>,
+) where
     S: PartialEq + Clone + 'static,
     T: 'static,
 {
@@ -383,8 +384,11 @@ where
 }
 
 #[cfg(feature = "hydrate")]
-fn load_resource<S, T>(runtime: RuntimeId, id: ResourceId, r: Rc<ResourceState<S, T>>)
-where
+fn load_resource<S, T>(
+    runtime: RuntimeId,
+    id: ResourceId,
+    r: Rc<ResourceState<S, T>>,
+) where
     S: PartialEq + Clone + 'static,
     T: Serializable + 'static,
 {
@@ -462,7 +466,7 @@ where
     /// resource.
     ///
     /// If you want to get the value without cloning it, use [`Resource::with`].
-    /// (`value.read(cx)` is equivalent to `value.with(cx, T::clone)`.)
+    /// (`value.read(cx)` is equivalent to `value.with(T::clone)`.)
     #[cfg_attr(
         any(debug_assertions, feature = "ssr"),
         instrument(level = "info", skip_all,)
@@ -542,9 +546,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "trace", skip_all,)
     )]
-    pub async fn to_serialization_resolver(
-        &self,
-    ) -> (ResourceId, String)
+    pub async fn to_serialization_resolver(&self) -> (ResourceId, String)
     where
         T: Serializable,
     {
@@ -680,22 +682,22 @@ impl<S, T> SignalSet<T> for Resource<S, T> {
 /// }
 ///
 /// // a signal that controls how many cat pics we want
-/// let (how_many_cats, set_how_many_cats) = create_signal(cx, 1);
+/// let (how_many_cats, set_how_many_cats) = create_signal(1);
 ///
 /// // create a resource that will refetch whenever `how_many_cats` changes
 /// # // `csr`, `hydrate`, and `ssr` all have issues here
 /// # // because we're not running in a browser or in Tokio. Let's just ignore it.
 /// # if false {
-/// let cats = create_resource(cx, move || how_many_cats.get(), fetch_cat_picture_urls);
+/// let cats = create_resource(move || how_many_cats.get(), fetch_cat_picture_urls);
 ///
 /// // when we read the signal, it contains either
 /// // 1) None (if the Future isn't ready yet) or
 /// // 2) Some(T) (if the future's already resolved)
-/// assert_eq!(cats.read(cx), Some(vec!["1".to_string()]));
+/// assert_eq!(cats.read(), Some(vec!["1".to_string()]));
 ///
 /// // when the signal's value changes, the `Resource` will generate and run a new `Future`
 /// set_how_many_cats.set(2);
-/// assert_eq!(cats.read(cx), Some(vec!["2".to_string()]));
+/// assert_eq!(cats.read(), Some(vec!["2".to_string()]));
 /// # }
 /// # }).dispose();
 /// ```
@@ -789,10 +791,7 @@ where
         instrument(level = "info", skip_all,)
     )]
     #[track_caller]
-    pub fn read(
-        &self,
-        location: &'static Location<'static>,
-    ) -> Option<T>
+    pub fn read(&self, location: &'static Location<'static>) -> Option<T>
     where
         T: Clone,
     {
