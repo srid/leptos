@@ -13,47 +13,34 @@ use web_sys::AnimationEvent;
     tracing::instrument(level = "info", skip_all,)
 )]
 #[component]
-pub fn Outlet(cx: Scope) -> impl IntoView {
+pub fn Outlet() -> impl IntoView {
     let id = HydrationCtx::id();
-    let route = use_route(cx);
-    let is_showing = Rc::new(Cell::new(None::<(usize, Scope)>));
-    let (outlet, set_outlet) = create_signal(cx, None::<View>);
-    create_isomorphic_effect(cx, move |_| {
-        match (route.child(cx), &is_showing.get()) {
-            (None, prev) => {
-                if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
-                    prev_scope.dispose();
-                }
-                set_outlet.set(None);
-            }
-            (Some(child), Some((is_showing_val, _)))
-                if child.id() == *is_showing_val =>
-            {
-                // do nothing: we don't need to rerender the component, because it's the same
-            }
-            (Some(child), prev) => {
-                if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
-                    prev_scope.dispose();
-                }
-                _ = cx.child_scope(|child_cx| {
-                    provide_context(child_cx, child.clone());
-                    set_outlet
-                        .set(Some(child.outlet(child_cx).into_view(child_cx)));
-                    is_showing.set(Some((child.id(), child_cx)));
-                });
-            }
-        }
+    let route = use_route();
+    let (outlet, set_outlet) = create_signal(None::<View>);
+
+    let memoized_child = create_memo({
+        let route = route.clone();
+        move |_| route.child().map(|child| child.id())
+    });
+
+    create_isomorphic_effect(move |_| {
+        memoized_child.track();
+        let child = untrack({
+            let route = route.clone();
+            move || route.child()
+        });
+        set_outlet.set(child.map(|child| child.outlet().into_view()));
     });
 
     let outlet: Signal<Option<View>> =
         if cfg!(any(feature = "csr", feature = "hydrate"))
-            && use_context::<SetIsRouting>(cx).is_some()
+            && use_context::<SetIsRouting>().is_some()
         {
-            let global_suspense = expect_context::<GlobalSuspenseContext>(cx);
+            let global_suspense = expect_context::<GlobalSuspenseContext>();
 
-            let (current_view, set_current_view) = create_signal(cx, None);
+            let (current_view, set_current_view) = create_signal(None);
 
-            create_effect(cx, {
+            create_effect({
                 move |prev| {
                     let outlet = outlet.get();
                     let is_fallback =
@@ -64,7 +51,7 @@ pub fn Outlet(cx: Scope) -> impl IntoView {
                         queue_microtask({
                             let global_suspense = global_suspense.clone();
                             move || {
-                                let is_fallback = cx.untrack(move || {
+                                let is_fallback = untrack(move || {
                                     !global_suspense
                                         .with_inner(SuspenseContext::ready)
                                 });
@@ -84,6 +71,10 @@ pub fn Outlet(cx: Scope) -> impl IntoView {
     leptos::leptos_dom::DynChild::new_with_id(id, move || outlet.get())
 }
 
+struct OutletChild {
+    id: usize,
+}
+/*
 /// Displays the child route nested in a parent route, allowing you to control exactly where
 /// that child route is displayed. Renders nothing if there is no nested child.
 ///
@@ -100,7 +91,6 @@ pub fn Outlet(cx: Scope) -> impl IntoView {
 /// whenever an `animationend` event fires.
 #[component]
 pub fn AnimatedOutlet(
-    cx: Scope,
     /// Base classes to be applied to the `<div>` wrapping the outlet during any animation state.
     #[prop(optional, into)]
     class: Option<TextProp>,
@@ -123,9 +113,9 @@ pub fn AnimatedOutlet(
     #[prop(optional)]
     finally: Option<&'static str>,
 ) -> impl IntoView {
-    let route = use_route(cx);
-    let is_showing = Rc::new(Cell::new(None::<(usize, Scope)>));
-    let (outlet, set_outlet) = create_signal(cx, None::<View>);
+    let route = use_route();
+    let is_showing = Rc::new(Cell::new(None::<(usize)>));
+    let (outlet, set_outlet) = create_signal(None::<View>);
 
     let animation = Animation {
         outro,
@@ -136,10 +126,10 @@ pub fn AnimatedOutlet(
         intro_back,
     };
     let (animation_state, set_animation_state) =
-        create_signal(cx, AnimationState::Finally);
-    let trigger_animation = create_rw_signal(cx, ());
-    let is_back = use_is_back_navigation(cx);
-    let animation_and_outlet = create_memo(cx, {
+        create_signal(AnimationState::Finally);
+    let trigger_animation = create_rw_signal(());
+    let is_back = use_is_back_navigation();
+    let animation_and_outlet = create_memo({
         move |prev: Option<&(AnimationState, View)>| {
             let animation_state = animation_state.get();
             let next_outlet = outlet.get().unwrap_or_default();
@@ -160,11 +150,11 @@ pub fn AnimatedOutlet(
         }
     });
     let current_animation =
-        create_memo(cx, move |_| animation_and_outlet.get().0);
-    let current_outlet = create_memo(cx, move |_| animation_and_outlet.get().1);
+        create_memo(move |_| animation_and_outlet.get().0);
+    let current_outlet = create_memo(move |_| animation_and_outlet.get().1);
 
-    create_isomorphic_effect(cx, move |_| {
-        match (route.child(cx), &is_showing.get()) {
+    create_isomorphic_effect(move |_| {
+        match (route.child(), &is_showing.get()) {
             (None, prev) => {
                 if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
                     prev_scope.dispose();
@@ -182,7 +172,7 @@ pub fn AnimatedOutlet(
                     prev_scope.dispose();
                 }
                 _ = cx.child_scope(|child_cx| {
-                    provide_context(child_cx, child.clone());
+                    provide_context(child_child.clone());
                     set_outlet
                         .set(Some(child.outlet(child_cx).into_view(child_cx)));
                     is_showing.set(Some((child.id(), child_cx)));
@@ -206,7 +196,7 @@ pub fn AnimatedOutlet(
             animation_class.to_string()
         }
     };
-    let node_ref = create_node_ref::<html::Div>(cx);
+    let node_ref = create_node_ref::<html::Div>();
     let animationend = move |ev: AnimationEvent| {
         use wasm_bindgen::JsCast;
         if let Some(target) = ev.target() {
@@ -233,3 +223,4 @@ pub fn AnimatedOutlet(
         </div>
     }
 }
+ */

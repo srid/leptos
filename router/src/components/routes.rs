@@ -58,7 +58,7 @@ pub fn Routes(
     leptos::leptos_dom::DynChild::new_with_id(id, move || root.get())
         .into_view()
 }
-
+/* 
 /// Contains route definitions and manages the actual routing process, with animated transitions
 /// between routes.
 ///
@@ -217,7 +217,7 @@ pub fn AnimatedRoutes(
         .child(move || root.get())
         .into_view()
 }
-
+ */
 pub(crate) struct Branches;
 
 thread_local! {
@@ -399,8 +399,6 @@ fn root_route(
     route_states: Memo<RouterState>,
     root_equal: Rc<Cell<bool>>,
 ) -> Signal<Option<View>> {
-    let root_cx = RefCell::new(None);
-
     let root_view = create_memo({
         let root_equal = Rc::clone(&root_equal);
         move |prev| {
@@ -416,18 +414,8 @@ fn root_route(
                     }
 
                     if prev.is_none() || !root_equal.get() {
-                        let (root_view, _) = cx.run_child_scope(|| {
-                            let prev_cx = std::mem::replace(
-                                &mut *root_cx.borrow_mut(),
-                                Some(),
-                            );
-                            if let Some(prev_cx) = prev_cx {
-                                prev_cx.dispose();
-                            }
-                            root.as_ref()
-                                .map(|route| route.outlet().into_view())
-                        });
-                        root_view
+                        root.as_ref()
+                            .map(|route| route.outlet().into_view())
                     } else {
                         prev.cloned().unwrap()
                     }
@@ -453,7 +441,7 @@ fn root_route(
                 queue_microtask({
                     let global_suspense = global_suspense.clone();
                     move || {
-                        let is_fallback = cx.untrack(move || {
+                        let is_fallback = untrack(move || {
                             !global_suspense.with_inner(SuspenseContext::ready)
                         });
                         if !is_fallback {

@@ -104,13 +104,6 @@ pub trait IntoAttribute {
     fn into_attribute_boxed(self: Box<Self>) -> Attribute;
 }
 
-impl<T: IntoAttribute + 'static> From<T> for Box<dyn IntoAttribute> {
-    #[inline(always)]
-    fn from(value: T) -> Self {
-        Box::new(value)
-    }
-}
-
 impl IntoAttribute for Attribute {
     #[inline(always)]
     fn into_attribute(self) -> Attribute {
@@ -212,6 +205,26 @@ where
     fn into_attribute(self) -> Attribute {
         let modified_fn = Rc::new(move || (self)().into_attribute());
         Attribute::Fn(modified_fn)
+    }
+
+    impl_into_attr_boxed! {}
+}
+
+impl IntoAttribute for Option<Box<dyn IntoAttribute>> {
+    fn into_attribute(self) -> Attribute {
+        match self {
+            Some(bx) => bx.into_attribute_boxed(),
+            None => Attribute::Option(None),
+        }
+    }
+
+    impl_into_attr_boxed! {}
+}
+
+impl IntoAttribute for Box<dyn IntoAttribute> {
+    #[inline(always)]
+    fn into_attribute(self) -> Attribute {
+        self.into_attribute_boxed()
     }
 
     impl_into_attr_boxed! {}

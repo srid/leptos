@@ -72,7 +72,6 @@ impl std::fmt::Debug for RouterContextInner {
         f.debug_struct("RouterContextInner")
             .field("location", &self.location)
             .field("base", &self.base)
-            .field("cx", &self.cx)
             .field("reference", &self.reference)
             .field("set_reference", &self.set_reference)
             .field("referrers", &self.referrers)
@@ -158,7 +157,7 @@ impl RouterContext {
 
         create_render_effect(move |_| {
             let LocationChange { value, state, .. } = source.get();
-            cx.untrack(move || {
+            untrack(move || {
                 if value != reference.get() {
                     set_reference.update(move |r| *r = value);
                     set_state.update(move |s| *s = state);
@@ -223,10 +222,9 @@ impl RouterContextInner {
         to: &str,
         options: &NavigateOptions,
     ) -> Result<(), NavigationError> {
-        let cx = self.cx;
         let this = Rc::clone(&self);
 
-        cx.untrack(move || {
+        untrack(move || {
             let resolved_to = if options.resolve {
                 this.base.resolve_path(to)
             } else {

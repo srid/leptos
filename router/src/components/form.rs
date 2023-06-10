@@ -491,7 +491,7 @@ where
         .on_response(on_response)
         .on_error(on_error)
         .method("post")
-        .class(class)
+        // TODO Fix.class(class.map(|c| c.into_attribute()))
         .children(children)
         .build();
     props.error = error;
