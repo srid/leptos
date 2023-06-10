@@ -55,7 +55,10 @@ pub fn Routes(
     let id = HydrationCtx::id();
     let root = root_route(base_route, route_states, root_equal);
 
-    leptos::leptos_dom::DynChild::new_with_id(id, move || root.get())
+    leptos::leptos_dom::DynChild::new_with_id(id, move || {
+        leptos::log!("root.get");
+        root.get()
+    })
         .into_view()
 }
 /* 
@@ -399,13 +402,17 @@ fn root_route(
     route_states: Memo<RouterState>,
     root_equal: Rc<Cell<bool>>,
 ) -> Signal<Option<View>> {
+    let outlet = with_current_owner(|route: RouteContext| route.outlet().into_view());
     let root_view = create_memo({
         let root_equal = Rc::clone(&root_equal);
         move |prev| {
+            leptos::log!("root_route");
             provide_context(route_states);
             route_states.with(|state| {
                 if state.routes.borrow().is_empty() {
-                    Some(base_route.outlet().into_view())
+                    let (outlet, disposer) = outlet(base_route.clone());
+                    std::mem::forget(disposer);
+                    Some(outlet)
                 } else {
                     let root = state.routes.borrow();
                     let root = root.get(0);
@@ -415,7 +422,11 @@ fn root_route(
 
                     if prev.is_none() || !root_equal.get() {
                         root.as_ref()
-                            .map(|route| route.outlet().into_view())
+                            .map(|route| {
+                                let (outlet, disposer) = outlet((*route).clone());
+                                std::mem::forget(disposer);
+                                outlet
+                            })
                     } else {
                         prev.cloned().unwrap()
                     }

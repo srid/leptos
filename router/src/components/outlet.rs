@@ -20,16 +20,23 @@ pub fn Outlet() -> impl IntoView {
 
     let memoized_child = create_memo({
         let route = route.clone();
-        move |_| route.child().map(|child| child.id())
+        move |_| {
+            leptos::log!("memoized_child");
+            route.child().map(|child| child.id())
+        }
     });
 
     create_isomorphic_effect(move |_| {
+        leptos::log!("Outlet effect line 30");
         memoized_child.track();
         let child = untrack({
             let route = route.clone();
             move || route.child()
         });
-        set_outlet.set(child.map(|child| child.outlet().into_view()));
+        set_outlet.set(child.map(|child| {
+            provide_context(child.clone());
+            child.outlet().into_view()
+        }));
     });
 
     let outlet: Signal<Option<View>> =
