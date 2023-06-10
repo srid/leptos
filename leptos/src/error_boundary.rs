@@ -2,7 +2,7 @@ use crate::Children;
 use leptos_dom::{Errors, HydrationCtx, IntoView};
 use leptos_macro::{component, view};
 use leptos_reactive::{
-    create_rw_signal, provide_context, signal_prelude::*, RwSignal, Scope,
+    create_rw_signal, provide_context, signal_prelude::*, RwSignal,
 };
 
 /// When you render a `Result<_, _>` in your view, in the `Err` case it will
@@ -18,7 +18,7 @@ use leptos_reactive::{
 /// let (value, set_value) = create_signal(Ok(0));
 /// let on_input = move |ev| set_value.set(event_target_value(&ev).parse::<i32>());
 ///
-/// view! { 
+/// view! {
 ///   <input type="text" on:input=on_input/>
 ///   <ErrorBoundary
 ///     fallback=move |_, _| view! {  <p class="error">"Enter a valid number."</p>}
@@ -58,9 +58,9 @@ where
     IV: IntoView,
 {
     _ = HydrationCtx::next_component();
-    let errors: RwSignal<Errors> = create_rw_signal( Errors::default());
+    let errors: RwSignal<Errors> = create_rw_signal(Errors::default());
 
-    provide_context( errors);
+    provide_context(errors);
 
     // Run children so that they render and execute resources
     let children = children();
@@ -82,13 +82,13 @@ where
     }
 
     let children = children.into_view();
-    let errors_empty = create_memo( move |_| errors.with(Errors::is_empty));
+    let errors_empty = create_memo(move |_| errors.with(Errors::is_empty));
 
     move || {
         if errors_empty.get() {
             children.clone().into_view()
         } else {
-            view! { 
+            view! {
                 <>
                     {fallback( errors)}
                     <leptos-error-boundary style="display: none">{children.clone()}</leptos-error-boundary>

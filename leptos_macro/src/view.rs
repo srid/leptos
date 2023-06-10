@@ -1093,7 +1093,7 @@ fn element_to_tokens(
             }
         };
         let children = node.children.iter().map(|node| {
-            let (child, is_static) = match node {
+            let (child, _) = match node {
                 Node::Fragment(fragment) => (
                     fragment_to_tokens(
                         Span::call_site(),

@@ -1,4 +1,3 @@
-use leptos_reactive::Scope;
 use std::{borrow::Cow, rc::Rc};
 
 /// todo docs
@@ -100,13 +99,6 @@ impl Style {
                 value.as_value_string(style_name)
             }
         }
-    }
-}
-
-impl<T: IntoStyle> IntoStyle for (Scope, T) {
-    #[inline(always)]
-    fn into_style(self) -> Style {
-        self.1.into_style()
     }
 }
 

@@ -125,7 +125,7 @@
 //! # if false { // can't run in doctests
 //!
 //! #[component]
-//! fn SimpleCounter( initial_value: i32) -> impl IntoView {
+//! fn SimpleCounter(initial_value: i32) -> impl IntoView {
 //!     todo!()
 //! }
 //!
@@ -215,12 +215,11 @@ pub type ChildrenFnMut = Box<dyn FnMut() -> Fragment>;
 ///
 /// #[component]
 /// pub fn MyHeading(
-///     
 ///     text: String,
 ///     #[prop(optional, into)] class: Option<AttributeValue>,
 /// ) -> impl IntoView {
 ///     view! {
-///       
+///
 ///       <h1 class=class>{text}</h1>
 ///     }
 /// }
@@ -264,10 +263,7 @@ impl PropsOrNoPropsBuilder for EmptyPropsBuilder {
     }
 }
 
-impl<F, R> Component<EmptyPropsBuilder> for F where
-    F: FnOnce() -> R
-{
-}
+impl<F, R> Component<EmptyPropsBuilder> for F where F: FnOnce() -> R {}
 
 impl<P, F, R> Component<P> for F
 where
@@ -284,10 +280,7 @@ pub fn component_props_builder<P: PropsOrNoPropsBuilder>(
 }
 
 #[doc(hidden)]
-pub fn component_view<P>(
-    f: impl ComponentConstructor<P>,
-    props: P,
-) -> View {
+pub fn component_view<P>(f: impl ComponentConstructor<P>, props: P) -> View {
     f.construct(props)
 }
 

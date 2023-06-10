@@ -1,5 +1,4 @@
 use crate::{IntoView, View};
-use leptos_reactive::Scope;
 use std::{any::Any, fmt, rc::Rc};
 
 /// Wrapper for arbitrary data that can be passed through the view.

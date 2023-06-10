@@ -4,7 +4,7 @@
 use super::{html::HTML_ELEMENT_DEREF_UNIMPLEMENTED_MSG, HydrationKey};
 use super::{ElementDescriptor, HtmlElement};
 use crate::HydrationCtx;
-use leptos_reactive::Scope;
+
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use once_cell::unsync::Lazy as LazyCell;
 use std::borrow::Cow;
@@ -161,7 +161,7 @@ macro_rules! generate_svg_tags {
 
         #[$meta]
         #[allow(non_snake_case)]
-        pub fn [<$tag $(_ $second $(_ $third)?)? $($trailing_)?>](cx: Scope) -> HtmlElement<[<$tag:camel $($second:camel $($third:camel)?)?>]> {
+        pub fn [<$tag $(_ $second $(_ $third)?)? $($trailing_)?>]() -> HtmlElement<[<$tag:camel $($second:camel $($third:camel)?)?>]> {
           HtmlElement::new([<$tag:camel $($second:camel $($third:camel)?)?>]::default())
         }
       )*

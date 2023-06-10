@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-use crate::{with_runtime, Runtime, RuntimeId, Scope, ScopeProperty};
+use crate::{with_runtime, Runtime, RuntimeId, ScopeProperty};
 use std::{
     cell::RefCell,
     fmt,
@@ -292,7 +292,8 @@ where
             .insert(Rc::new(RefCell::new(value)));
         runtime.push_scope_property(ScopeProperty::StoredValue(id));
         id
-    }).expect("store_value failed to find the current runtime");
+    })
+    .expect("store_value failed to find the current runtime");
     StoredValue {
         runtime,
         id,

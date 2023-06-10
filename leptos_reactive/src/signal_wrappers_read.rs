@@ -1,7 +1,8 @@
 #![forbid(unsafe_code)]
 use crate::{
-    create_effect, on_cleanup, store_value, Memo, ReadSignal, RwSignal,     SignalGet, SignalGetUntracked, SignalStream, SignalWith,
-    SignalWithUntracked, StoredValue, runtime::untrack,
+    create_effect, on_cleanup, runtime::untrack, store_value, Memo, ReadSignal,
+    RwSignal, SignalGet, SignalGetUntracked, SignalStream, SignalWith,
+    SignalWithUntracked, StoredValue,
 };
 
 /// Helper trait for converting `Fn() -> T` closures into
@@ -118,9 +119,7 @@ impl<T: Clone> SignalGetUntracked<T> for Signal<T> {
         match &self.inner {
             SignalTypes::ReadSignal(s) => s.get_untracked(),
             SignalTypes::Memo(m) => m.get_untracked(),
-            SignalTypes::DerivedSignal(f) => {
-                untrack(|| f.with_value(|f| f()))
-            }
+            SignalTypes::DerivedSignal(f) => untrack(|| f.with_value(|f| f())),
         }
     }
 
@@ -307,9 +306,7 @@ impl<T: Clone> SignalGet<T> for Signal<T> {
 }
 
 impl<T: Clone> SignalStream<T> for Signal<T> {
-    fn to_stream(
-        &self,
-    ) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
+    fn to_stream(&self) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
         match self.inner {
             SignalTypes::ReadSignal(r) => r.to_stream(),
             SignalTypes::Memo(m) => m.to_stream(),
@@ -318,9 +315,9 @@ impl<T: Clone> SignalStream<T> for Signal<T> {
 
                 let close_channel = tx.clone();
 
-                on_cleanup( move || close_channel.close_channel());
+                on_cleanup(move || close_channel.close_channel());
 
-                create_effect( move |_| {
+                create_effect(move |_| {
                     let _ = s.try_with_value(|t| tx.unbounded_send(t()));
                 });
 
@@ -354,10 +351,7 @@ where
     #[track_caller]
     #[cfg_attr(
         any(debug_assertions, feature = "ssr"),
-        instrument(
-            level = "trace",
-            skip_all
-        )
+        instrument(level = "trace", skip_all)
     )]
     pub fn derive(derived_signal: impl Fn() -> T + 'static) -> Self {
         let span = ::tracing::Span::current();
@@ -368,16 +362,19 @@ where
         };
 
         Self {
-            inner: SignalTypes::DerivedSignal(
-                store_value(Box::new(derived_signal)),
-            ),
+            inner: SignalTypes::DerivedSignal(store_value(Box::new(
+                derived_signal,
+            ))),
             #[cfg(any(debug_assertions, feature = "ssr"))]
             defined_at: std::panic::Location::caller(),
         }
     }
 }
 
-impl<T> Default for Signal<T> where T: Default {
+impl<T> Default for Signal<T>
+where
+    T: Default,
+{
     fn default() -> Self {
         Self::derive(|| Default::default())
     }
@@ -430,9 +427,7 @@ impl<T> Clone for SignalTypes<T> {
         match self {
             Self::ReadSignal(arg0) => Self::ReadSignal(*arg0),
             Self::Memo(arg0) => Self::Memo(*arg0),
-            Self::DerivedSignal( arg1) => {
-                Self::DerivedSignal(*arg1)
-            }
+            Self::DerivedSignal(arg1) => Self::DerivedSignal(*arg1),
         }
     }
 }
@@ -446,9 +441,7 @@ impl<T> std::fmt::Debug for SignalTypes<T> {
                 f.debug_tuple("ReadSignal").field(arg0).finish()
             }
             Self::Memo(arg0) => f.debug_tuple("Memo").field(arg0).finish(),
-            Self::DerivedSignal(_) => {
-                f.debug_tuple("DerivedSignal").finish()
-            }
+            Self::DerivedSignal(_) => f.debug_tuple("DerivedSignal").finish(),
         }
     }
 }
@@ -673,9 +666,7 @@ impl<T: Clone> SignalGetUntracked<T> for MaybeSignal<T> {
 }
 
 impl<T: Clone> SignalStream<T> for MaybeSignal<T> {
-    fn to_stream(
-        &self,
-    ) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
+    fn to_stream(&self) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
         match self {
             Self::Static(t) => {
                 let t = t.clone();

@@ -7,9 +7,9 @@ mod routes;
 use routes::{nav::*, stories::*, story::*, users::*};
 
 #[component]
-pub fn App(cx: Scope) -> impl IntoView {
-    provide_meta_context(cx);
-    let (is_routing, set_is_routing) = create_signal(cx, false);
+pub fn App() -> impl IntoView {
+    provide_meta_context();
+    let (is_routing, set_is_routing) = create_signal(false);
 
     view! { cx,
         <Stylesheet id="leptos" href="/pkg/hackernews.css"/>
@@ -41,7 +41,7 @@ cfg_if! {
             _ = console_log::init_with_level(log::Level::Debug);
             console_error_panic_hook::set_once();
             leptos::mount_to_body(move |cx| {
-                view! { cx, <App/> }
+                view! { <App/> }
             });
         }
     }

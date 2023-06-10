@@ -88,9 +88,7 @@ impl std::fmt::Debug for Attribute {
         match self {
             Self::String(arg0) => f.debug_tuple("String").field(arg0).finish(),
             Self::Fn(_) => f.debug_tuple("Fn").finish(),
-            Self::Option(arg0) => {
-                f.debug_tuple("Option").field(arg0).finish()
-            }
+            Self::Option(arg0) => f.debug_tuple("Option").field(arg0).finish(),
             Self::Bool(arg0) => f.debug_tuple("Bool").field(arg0).finish(),
         }
     }

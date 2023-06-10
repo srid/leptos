@@ -12,8 +12,7 @@ use cfg_if::cfg_if;
 use futures::{channel::mpsc::UnboundedSender, Stream, StreamExt};
 use itertools::Itertools;
 use leptos_reactive::{
-    create_runtime, run_scope_undisposed, suspense::StreamChunk, RuntimeId,
-    Scope, ScopeId,
+    enter_new_runtime, suspense::StreamChunk, RuntimeId, SharedContext,
 };
 use std::{borrow::Cow, collections::VecDeque};
 
@@ -21,7 +20,7 @@ use std::{borrow::Cow, collections::VecDeque};
 /// loaded in `<Suspense/>` elements have finished loading.
 #[tracing::instrument(level = "info", skip_all)]
 pub async fn render_to_string_async(
-    view: impl FnOnce(Scope) -> View + 'static,
+    view: impl FnOnce() -> View + 'static,
 ) -> String {
     let mut buf = String::new();
     let mut stream = Box::pin(render_to_stream_in_order(view));
@@ -37,9 +36,9 @@ pub async fn render_to_string_async(
 /// 2. any serialized [Resource](leptos_reactive::Resource)s
 #[tracing::instrument(level = "info", skip_all)]
 pub fn render_to_stream_in_order(
-    view: impl FnOnce(Scope) -> View + 'static,
+    view: impl FnOnce() -> View + 'static,
 ) -> impl Stream<Item = String> {
-    render_to_stream_in_order_with_prefix(view, |_| "".into())
+    render_to_stream_in_order_with_prefix(view, || "".into())
 }
 
 /// Renders an in-order HTML stream, pausing at `<Suspense/>` components. The stream contains,
@@ -52,8 +51,8 @@ pub fn render_to_stream_in_order(
 /// after the `view` is rendered, but before `<Suspense/>` nodes have resolved.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn render_to_stream_in_order_with_prefix(
-    view: impl FnOnce(Scope) -> View + 'static,
-    prefix: impl FnOnce(Scope) -> Cow<'static, str> + 'static,
+    view: impl FnOnce() -> View + 'static,
+    prefix: impl FnOnce() -> Cow<'static, str> + 'static,
 ) -> impl Stream<Item = String> {
     #[cfg(all(feature = "web", feature = "ssr"))]
     crate::console_error(
@@ -64,11 +63,11 @@ pub fn render_to_stream_in_order_with_prefix(
          `leptos` dependency.\n",
     );
 
-    let (stream, runtime, _) =
+    let (stream, runtime) =
         render_to_stream_in_order_with_prefix_undisposed_with_context(
             view,
             prefix,
-            |_| {},
+            || {},
         );
     runtime.dispose();
     stream
@@ -84,44 +83,33 @@ pub fn render_to_stream_in_order_with_prefix(
 /// after the `view` is rendered, but before `<Suspense/>` nodes have resolved.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn render_to_stream_in_order_with_prefix_undisposed_with_context(
-    view: impl FnOnce(Scope) -> View + 'static,
-    prefix: impl FnOnce(Scope) -> Cow<'static, str> + 'static,
-    additional_context: impl FnOnce(Scope) + 'static,
-) -> (impl Stream<Item = String>, RuntimeId, ScopeId) {
+    view: impl FnOnce() -> View + 'static,
+    prefix: impl FnOnce() -> Cow<'static, str> + 'static,
+    additional_context: impl FnOnce() + 'static,
+) -> (impl Stream<Item = String>, RuntimeId) {
     HydrationCtx::reset_id();
 
     // create the runtime
-    let runtime = create_runtime();
+    let runtime = enter_new_runtime();
 
-    let (
-        (blocking_fragments_ready, chunks, prefix, pending_resources),
-        scope_id,
-        _,
-    ) = run_scope_undisposed(runtime, |cx| {
-        // add additional context
-        additional_context(cx);
+    // add additional context
+    additional_context();
 
-        // render view and return chunks
-        let view = view(cx);
+    // render view and return chunks
+    let view = view();
 
-        (
-            cx.blocking_fragments_ready(),
-            view.into_stream_chunks(cx),
-            prefix,
-            serde_json::to_string(&cx.pending_resources()).unwrap(),
-        )
-    });
-    let cx = Scope {
-        runtime,
-        id: scope_id,
-    };
+    let blocking_fragments_ready = SharedContext::blocking_fragments_ready();
+    let chunks = view.into_stream_chunks();
+    let pending_resources =
+        serde_json::to_string(&SharedContext::pending_resources()).unwrap();
+    let serializers = SharedContext::serialization_resolvers();
 
     let (tx, rx) = futures::channel::mpsc::unbounded();
     let (prefix_tx, prefix_rx) = futures::channel::oneshot::channel();
     leptos_reactive::spawn_local(async move {
         blocking_fragments_ready.await;
         let remaining_chunks = handle_blocking_chunks(tx.clone(), chunks).await;
-        let prefix = prefix(cx);
+        let prefix = prefix();
         prefix_tx.send(prefix).expect("to send prefix");
         handle_chunks(cx, tx, remaining_chunks).await;
     });
@@ -148,7 +136,7 @@ pub fn render_to_stream_in_order_with_prefix_undisposed_with_context(
         .flatten(),
     );
 
-    (stream, runtime, scope_id)
+    (stream, runtime)
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
@@ -222,7 +210,7 @@ async fn handle_chunks(
 impl View {
     /// Renders the view into a set of HTML chunks that can be streamed.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn into_stream_chunks(self, cx: Scope) -> VecDeque<StreamChunk> {
+    pub fn into_stream_chunks(self) -> VecDeque<StreamChunk> {
         let mut chunks = VecDeque::new();
         self.into_stream_chunks_helper(&mut chunks, false);
         chunks
@@ -230,25 +218,21 @@ impl View {
     #[tracing::instrument(level = "trace", skip_all)]
     fn into_stream_chunks_helper(
         self,
-        cx: Scope,
         chunks: &mut VecDeque<StreamChunk>,
         dont_escape_text: bool,
     ) {
         match self {
             View::Suspense(id, view) => {
                 let id = id.to_string();
-                if let Some(data) = cx.take_pending_fragment(&id) {
+                if let Some(data) = SharedContext::take_pending_fragment(&id) {
                     chunks.push_back(StreamChunk::Async {
                         chunks: data.in_order,
                         should_block: data.should_block,
                     });
                 } else {
                     // if not registered, means it was already resolved
-                    View::CoreComponent(view).into_stream_chunks_helper(
-                        cx,
-                        chunks,
-                        dont_escape_text,
-                    );
+                    View::CoreComponent(view)
+                        .into_stream_chunks_helper(chunks, dont_escape_text);
                 }
             }
             View::Text(node) => {
@@ -289,7 +273,6 @@ impl View {
                             }
                             StringOrView::View(view) => {
                                 view().into_stream_chunks_helper(
-                                    cx,
                                     chunks,
                                     is_script_or_style,
                                 );
@@ -345,7 +328,6 @@ impl View {
                             ElementChildren::Children(children) => {
                                 for child in children {
                                     child.into_stream_chunks_helper(
-                                        cx,
                                         chunks,
                                         is_script_or_style,
                                     );
@@ -441,7 +423,6 @@ impl View {
                                             );
                                         } else {
                                             child.into_stream_chunks_helper(
-                                                cx,
                                                 chunks,
                                                 dont_escape_text,
                                             );
@@ -476,7 +457,6 @@ impl View {
                                             );
                                             node.child
                                                 .into_stream_chunks_helper(
-                                                    cx,
                                                     chunks,
                                                     dont_escape_text,
                                                 );
@@ -494,7 +474,6 @@ impl View {
                                         {
                                             node.child
                                                 .into_stream_chunks_helper(
-                                                    cx,
                                                     chunks,
                                                     dont_escape_text,
                                                 );

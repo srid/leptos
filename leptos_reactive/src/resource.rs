@@ -5,7 +5,7 @@ use crate::{
     runtime::{with_runtime, Runtime, RuntimeId},
     serialization::Serializable,
     spawn::spawn_local,
-    use_context, GlobalSuspenseContext, Memo, ReadSignal, Scope, ScopeProperty,
+    use_context, GlobalSuspenseContext, Memo, ReadSignal, ScopeProperty,
     SignalGetUntracked, SignalSet, SignalUpdate, SignalWith, SuspenseContext,
     WriteSignal,
 };

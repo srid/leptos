@@ -2,6 +2,60 @@
 use crate::hydration::HydrationKey;
 use crate::{hydration::HydrationCtx, Comment, CoreComponent, IntoView, View};
 use leptos_reactive::Disposer;
+
+cfg_if! {
+  if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
+    use crate::{mount_child, prepare_to_move, MountKind, Mountable, RANGE};
+    use once_cell::unsync::OnceCell;
+    use leptos_reactive::create_effect;
+    use rustc_hash::FxHasher;
+    use std::hash::BuildHasherDefault;
+    use wasm_bindgen::JsCast;
+    use drain_filter_polyfill::VecExt as VecDrainFilterExt;
+
+#[cfg(all(target_arch = "wasm32", feature = "web"))]
+mod web {
+    pub(crate) use crate::{
+        mount_child, prepare_to_move, MountKind, Mountable, RANGE,
+    };
+    pub use drain_filter_polyfill::VecExt as VecDrainFilterExt;
+    pub use leptos_reactive::create_effect;
+    pub use std::cell::OnceCell;
+    pub use wasm_bindgen::JsCast;
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "web"))]
+type FxIndexSet<T> =
+    indexmap::IndexSet<T, std::hash::BuildHasherDefault<rustc_hash::FxHasher>>;
+
+#[cfg(all(target_arch = "wasm32", feature = "web"))]
+trait VecExt {
+    fn get_next_closest_mounted_sibling(
+        &self,
+        start_at: usize,
+        or: web_sys::Node,
+    ) -> web_sys::Node;
+}
+
+#[cfg(all(target_arch = "wasm32", feature = "web"))]
+impl VecExt for Vec<Option<EachItem>> {
+    fn get_next_closest_mounted_sibling(
+        &self,
+        start_at: usize,
+        or: web_sys::Node,
+    ) -> web_sys::Node {
+        self[start_at..]
+          .iter()
+          .find_map(|s| s.as_ref().map(|s| s.get_opening_node()))
+          .unwrap_or(or)
+      }
+    }
+  } else {
+    use crate::hydration::HydrationKey;
+  }
+}
+use leptos_reactive::{with_current_owner};
+>>>>>>> 760f36b7 (work on server rendering)
 use std::{borrow::Cow, cell::RefCell, fmt, hash::Hash, ops::Deref, rc::Rc};
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use web::*;
@@ -471,7 +525,7 @@ where
                 Some(EachItem::new(disposer, item.into_view()))
               })
               // todo check scope disposal here
-              //.map(|child| cx.run_child_scope(|cx| Some(EachItem::new((each_fn)(child).into_view()))).0)
+              //.map(|child| cx.run_child_scope(|| Some(EachItem::new((each_fn)(child).into_view()))).0)
               .collect();
           }
         }

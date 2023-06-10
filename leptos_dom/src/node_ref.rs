@@ -1,7 +1,6 @@
 use crate::{html::ElementDescriptor, HtmlElement};
 use leptos_reactive::{
-    create_effect, create_rw_signal, signal_prelude::*, RwSignal, Scope,
-};
+    create_effect, create_rw_signal, signal_prelude::*, RwSignal};
 use std::cell::Cell;
 
 /// Contains a shared reference to a DOM node created while using the `view`
@@ -13,8 +12,8 @@ use std::cell::Cell;
 /// use leptos::html::Input;
 ///
 /// #[component]
-/// pub fn MyComponent(cx: Scope) -> impl IntoView {
-///     let input_ref = create_node_ref::<Input>(cx);
+/// pub fn MyComponent() -> impl IntoView {
+///     let input_ref = create_node_ref::<Input>();
 ///
 ///     let on_click = move |_| {
 ///         let node =
@@ -49,8 +48,8 @@ pub struct NodeRef<T: ElementDescriptor + 'static>(
 /// use leptos::html::Input;
 ///
 /// #[component]
-/// pub fn MyComponent(cx: Scope) -> impl IntoView {
-///     let input_ref = create_node_ref::<Input>(cx);
+/// pub fn MyComponent() -> impl IntoView {
+///     let input_ref = create_node_ref::<Input>();
 ///
 ///     let on_click = move |_| {
 ///         let node =
@@ -73,7 +72,7 @@ pub struct NodeRef<T: ElementDescriptor + 'static>(
 /// ```
 #[inline(always)]
 pub fn create_node_ref<T: ElementDescriptor + 'static>(
-    cx: Scope,
+    
 ) -> NodeRef<T> {
     NodeRef(create_rw_signal(None))
 }
@@ -130,7 +129,7 @@ impl<T: ElementDescriptor + 'static> NodeRef<T> {
     /// Runs the provided closure when the `NodeRef` has been connected
     /// with it's [`HtmlElement`].
     #[inline(always)]
-    pub fn on_load<F>(self, cx: Scope, f: F)
+    pub fn on_load<F>(self,  f: F)
     where
         T: Clone,
         F: FnOnce(HtmlElement<T>) + 'static,

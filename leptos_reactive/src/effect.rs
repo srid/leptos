@@ -1,5 +1,8 @@
 #![forbid(unsafe_code)]
-use crate::{with_runtime, Scope, Runtime, ScopeProperty, node::{ReactiveNode, ReactiveNodeState, ReactiveNodeType}};
+use crate::{
+    node::{ReactiveNode, ReactiveNodeState, ReactiveNodeType},
+    with_runtime, Runtime,
+};
 use cfg_if::cfg_if;
 use std::{any::Any, cell::RefCell, marker::PhantomData, rc::Rc};
 
@@ -67,7 +70,7 @@ where
             let runtime = Runtime::current();
             let e = runtime.create_effect(f);
             //crate::macros::debug_warn!("creating effect {e:?}");
-            with_runtime(runtime, |runtime| {
+            _ = with_runtime(runtime, |runtime| {
                 runtime.update_if_necessary(e);
             });
         } else {
@@ -115,22 +118,22 @@ where
 )]
 #[track_caller]
 #[inline(always)]
-pub fn create_isomorphic_effect<T>(
-    f: impl Fn(Option<T>) -> T + 'static,
-) where
+pub fn create_isomorphic_effect<T>(f: impl Fn(Option<T>) -> T + 'static)
+where
     T: 'static,
 {
     let runtime = Runtime::current();
     let e = runtime.create_effect(f);
     //crate::macros::debug_warn!("creating effect {e:?}");
-    with_runtime(runtime, |runtime| {
+    _ = with_runtime(runtime, |runtime| {
         runtime.update_if_necessary(e);
     });
 }
 
-/// Create a reactive root.
-///
-/// TODO docs
+/// Creates a reactive root. This creates an anchoring "root node"
+/// that begins the whole tree of reactive ownership. Unlike effects, the root
+/// does not re-run in response to changes. It simply exists to be the
+/// ultimate ancestor of every node in the reactive graph.
 #[cfg_attr(
     any(debug_assertions, feature="ssr"),
     instrument(
@@ -161,7 +164,7 @@ where
                     f,
                     ty: PhantomData,
                     #[cfg(debug_assertions)]
-                    defined_at
+                    defined_at,
                 }),
             },
         });
@@ -169,7 +172,8 @@ where
         runtime.owner.set(Some(id));
         runtime.observer.set(None);
         runtime.update_if_necessary(id);
-    }).expect("tried to create a root in a runtime that has been disposed")
+    })
+    .expect("tried to create a root in a runtime that has been disposed")
 }
 
 #[doc(hidden)]

@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
-use crate::{
-    store_value, RwSignal, Scope, SignalSet, StoredValue, WriteSignal,
-};
+use crate::{store_value, RwSignal, SignalSet, StoredValue, WriteSignal};
 
 /// Helper trait for converting `Fn(T)` into [`SignalSetter<T>`].
 pub trait IntoSignalSetter<T>: Sized {
@@ -139,16 +137,13 @@ where
     #[track_caller]
     #[cfg_attr(
         any(debug_assertions, feature = "ssr"),
-        instrument(
-            level = "trace",
-            skip_all
-        )
+        instrument(level = "trace", skip_all)
     )]
     pub fn map(mapped_setter: impl Fn(T) + 'static) -> Self {
         Self {
-            inner: SignalSetterTypes::Mapped(
-                store_value(Box::new(mapped_setter)),
-            ),
+            inner: SignalSetterTypes::Mapped(store_value(Box::new(
+                mapped_setter,
+            ))),
             #[cfg(any(debug_assertions, feature = "ssr"))]
             defined_at: std::panic::Location::caller(),
         }

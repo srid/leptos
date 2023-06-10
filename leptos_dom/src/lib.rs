@@ -656,10 +656,7 @@ impl View {
 
     /// Returns [`Ok(HtmlElement<AnyElement>)`] if this [`View`] is
     /// of type [`Element`]. [`Err(View)`] otherwise.
-    pub fn into_html_element(
-        self,
-        cx: Scope,
-    ) -> Result<HtmlElement<AnyElement>, Self> {
+    pub fn into_html_element(self) -> Result<HtmlElement<AnyElement>, Self> {
         if let Self::Element(el) = self {
             Ok(el.into_html_element())
         } else {
@@ -849,22 +846,15 @@ where
 {
     cfg_if! {
       if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
-        let disposer = leptos_reactive::create_scope(
-          leptos_reactive::create_runtime(),
-          move |cx| {
-            leptos_reactive::create_root(move |_| {
-                let node = f().into_view();
+        leptos_reactive::create_root(move |_| {
+            let node = f().into_view();
 
-                HydrationCtx::stop_hydrating();
+            HydrationCtx::stop_hydrating();
 
-                parent.append_child(&node.get_mountable_node()).unwrap();
+            parent.append_child(&node.get_mountable_node()).unwrap();
 
-                std::mem::forget(node);
-            })
-          },
-        );
-
-        std::mem::forget(disposer);
+            std::mem::forget(node);
+        })
       } else {
         _ = parent;
         _ = f;

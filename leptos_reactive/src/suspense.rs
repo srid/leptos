@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 use crate::{
     create_isomorphic_effect, create_rw_signal, create_signal, queue_microtask,
-    signal::SignalGet, store_value, ReadSignal, RwSignal, Scope, SignalSet,
+    signal::SignalGet, store_value, ReadSignal, RwSignal, SignalSet,
     SignalUpdate, StoredValue, WriteSignal,
 };
 use futures::Future;
@@ -31,7 +31,7 @@ pub struct GlobalSuspenseContext(Rc<RefCell<SuspenseContext>>);
 
 impl GlobalSuspenseContext {
     /// Creates an empty global suspense context.
-    pub fn new(cx: Scope) -> Self {
+    pub fn new() -> Self {
         Self(Rc::new(RefCell::new(SuspenseContext::new())))
     }
 
@@ -41,7 +41,7 @@ impl GlobalSuspenseContext {
     }
 
     /// Runs a function with a reference to the underlying suspense context.
-    pub fn reset(&self, cx: Scope) {
+    pub fn reset(&self) {
         let mut inner = self.0.borrow_mut();
         _ = std::mem::replace(&mut *inner, SuspenseContext::new());
     }
@@ -61,7 +61,7 @@ impl SuspenseContext {
     }
 
     /// Returns a `Future` that resolves when this suspense is resolved.
-    pub fn to_future(&self, cx: Scope) -> impl Future<Output = ()> {
+    pub fn to_future(&self) -> impl Future<Output = ()> {
         use futures::StreamExt;
 
         let pending_resources = self.pending_resources;

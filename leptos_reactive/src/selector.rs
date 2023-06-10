@@ -53,7 +53,7 @@ pub fn create_selector<T>(
 where
     T: PartialEq + Eq + Clone + Hash + 'static,
 {
-    create_selector_with_fn( source, PartialEq::eq)
+    create_selector_with_fn(source, PartialEq::eq)
 }
 
 /// Creates a conditional signal that only notifies subscribers when a change

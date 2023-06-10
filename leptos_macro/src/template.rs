@@ -11,7 +11,7 @@ use rstml::node::{
 use syn::spanned::Spanned;
 use uuid::Uuid;
 
-pub(crate) fn render_template( nodes: &[Node]) -> TokenStream {
+pub(crate) fn render_template(nodes: &[Node]) -> TokenStream {
     let template_uid = Ident::new(
         &format!("TEMPLATE_{}", Uuid::new_v4().simple()),
         Span::call_site(),
@@ -21,7 +21,9 @@ pub(crate) fn render_template( nodes: &[Node]) -> TokenStream {
         Some(Node::Element(node)) => {
             root_element_to_tokens(&template_uid, node)
         }
-        _ => abort!(Span::call_site(), "template! takes a single root element."),
+        _ => {
+            abort!(Span::call_site(), "template! takes a single root element.")
+        }
     }
 }
 
@@ -108,7 +110,6 @@ fn attributes(node: &NodeElement) -> impl Iterator<Item = &KeyedAttribute> {
 
 #[allow(clippy::too_many_arguments)]
 fn element_to_tokens(
-    
     node: &NodeElement,
     parent: &Ident,
     prev_sib: Option<Ident>,
@@ -264,7 +265,6 @@ fn next_sibling_node(
 }
 
 fn attr_to_tokens(
-    
     node: &KeyedAttribute,
     el_id: &Ident,
     template: &mut String,
@@ -354,7 +354,6 @@ enum AttributeValue<'a> {
 
 #[allow(clippy::too_many_arguments)]
 fn child_to_tokens(
-    
     node: &Node,
     parent: &Ident,
     prev_sib: Option<Ident>,

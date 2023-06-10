@@ -4,7 +4,6 @@ mod errors;
 mod fragment;
 mod unit;
 
-use leptos_reactive::untrack;
 use crate::{
     hydration::{HydrationCtx, HydrationKey},
     Comment, IntoView, View,
@@ -15,7 +14,7 @@ pub use dyn_child::*;
 pub use each::*;
 pub use errors::*;
 pub use fragment::*;
-
+use leptos_reactive::untrack;
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use once_cell::unsync::OnceCell;
 #[cfg(all(target_arch = "wasm32", feature = "web"))]

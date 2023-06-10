@@ -4,8 +4,8 @@ use leptos_meta::*;
 use leptos_router::*;
 
 #[component]
-pub fn Story(cx: Scope) -> impl IntoView {
-    let params = use_params_map(cx);
+pub fn Story() -> impl IntoView {
+    let params = use_params_map();
     let story = create_resource(
         cx,
         move || params().get("id").cloned().unwrap_or_default(),
@@ -23,7 +23,7 @@ pub fn Story(cx: Scope) -> impl IntoView {
     );
     let meta_description = move || {
         story
-            .read(cx)
+            .read()
             .and_then(|story| story.map(|story| story.title))
             .unwrap_or_else(|| "Loading story...".to_string())
     };
@@ -31,9 +31,9 @@ pub fn Story(cx: Scope) -> impl IntoView {
     view! { cx,
         <>
             <Meta name="description" content=meta_description/>
-                <Suspense fallback=|| view! { cx, "Loading..." }>
-                    {move || story.read(cx).map(|story| match story {
-                        None => view! { cx,  <div class="item-view">"Error loading this story."</div> },
+                <Suspense fallback=|| view! { "Loading..." }>
+                    {move || story.read().map(|story| match story {
+                        None => view! {  <div class="item-view">"Error loading this story."</div> },
                         Some(story) => view! { cx,
                             <div class="item-view">
                                 <div class="item-view-header">
@@ -43,7 +43,7 @@ pub fn Story(cx: Scope) -> impl IntoView {
                                 <span class="host">
                                     "("{story.domain}")"
                                 </span>
-                                {story.user.map(|user| view! { cx,  <p class="meta">
+                                {story.user.map(|user| view! {  <p class="meta">
                                     {story.points}
                                     " points | by "
                                     <A href=format!("/users/{user}")>{user.clone()}</A>
@@ -62,7 +62,7 @@ pub fn Story(cx: Scope) -> impl IntoView {
                                     <For
                                         each=move || story.comments.clone().unwrap_or_default()
                                         key=|comment| comment.id
-                                        view=move |cx, comment| view! { cx,  <Comment comment /> }
+                                        view=move |comment| view! {  <Comment comment /> }
                                     />
                                 </ul>
                             </div>
@@ -75,8 +75,8 @@ pub fn Story(cx: Scope) -> impl IntoView {
 }
 
 #[component]
-pub fn Comment(cx: Scope, comment: api::Comment) -> impl IntoView {
-    let (open, set_open) = create_signal(cx, true);
+pub fn Comment( comment: api::Comment) -> impl IntoView {
+    let (open, set_open) = create_signal(true);
 
     view! { cx,
         <li class="comment">
@@ -107,7 +107,7 @@ pub fn Comment(cx: Scope, comment: api::Comment) -> impl IntoView {
                                 <For
                                     each=move || comments.clone()
                                     key=|comment| comment.id
-                                    view=move |cx, comment: api::Comment| view! { cx, <Comment comment /> }
+                                    view=move |comment: api::Comment| view! { <Comment comment /> }
                                 />
                             </ul>
                         }

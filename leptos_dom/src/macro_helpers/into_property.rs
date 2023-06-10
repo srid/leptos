@@ -1,4 +1,3 @@
-use leptos_reactive::Scope;
 use wasm_bindgen::JsValue;
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use wasm_bindgen::UnwrapThrowExt;
@@ -32,13 +31,6 @@ where
     fn into_property(self) -> Property {
         let modified_fn = Box::new(move || self().into());
         Property::Fn(modified_fn)
-    }
-}
-
-impl<T: IntoProperty> IntoProperty for (Scope, T) {
-    #[inline(always)]
-    fn into_property(self) -> Property {
-        self.1.into_property()
     }
 }
 

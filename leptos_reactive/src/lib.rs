@@ -84,7 +84,6 @@ mod memo;
 mod node;
 mod resource;
 mod runtime;
-mod scope;
 mod selector;
 mod serialization;
 mod signal_wrappers_read;
@@ -99,13 +98,15 @@ mod trigger;
 pub use context::*;
 pub use diagnostics::SpecialNonReactiveZone;
 pub use effect::*;
-pub use hydration::FragmentData;
+pub use hydration::{FragmentData, SharedContext};
 pub use memo::*;
 pub use node::Disposer;
 pub use resource::*;
 use runtime::*;
-pub use runtime::{create_runtime, RuntimeId, untrack, with_current_owner};
-pub use scope::*;
+pub use runtime::{
+    batch, create_runtime, enter_new_runtime, on_cleanup, untrack,
+    with_current_owner, RuntimeId,
+};
 pub use selector::*;
 pub use serialization::*;
 pub use signal::{prelude as signal_prelude, *};

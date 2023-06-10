@@ -1,6 +1,6 @@
 use leptos_dom::IntoView;
 use leptos_macro::component;
-use leptos_reactive::Scope;
+
 use std::hash::Hash;
 
 /// Iterates over children and displays them, keyed by the `key` function given.
@@ -47,7 +47,6 @@ use std::hash::Hash;
 )]
 #[component(transparent)]
 pub fn For<IF, I, T, EF, N, KF, K>(
-    
     /// Items over which the component should iterate.
     each: IF,
     /// A key function that will be applied to each item.

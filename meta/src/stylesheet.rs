@@ -9,8 +9,8 @@ use leptos::*;
 /// use leptos_meta::*;
 ///
 /// #[component]
-/// fn MyApp(cx: Scope) -> impl IntoView {
-///     provide_meta_context(cx);
+/// fn MyApp() -> impl IntoView {
+///     provide_meta_context();
 ///
 ///     view! { cx,
 ///       <main>
@@ -21,7 +21,7 @@ use leptos::*;
 /// ```
 #[component(transparent)]
 pub fn Stylesheet(
-    cx: Scope,
+    
     /// The URL at which the stylesheet is located.
     #[prop(into)]
     href: String,

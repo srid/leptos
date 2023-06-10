@@ -2,7 +2,7 @@ use crate::Suspense;
 use leptos_dom::IntoView;
 use leptos_macro::{component, view};
 use leptos_reactive::{
-    create_blocking_resource, create_resource, store_value, Scope, Serializable,
+    create_blocking_resource, create_resource, store_value, Serializable,
 };
 
 #[component]
@@ -105,7 +105,8 @@ where
         create_resource(|| (), move |_| future())
     };
     let view = store_value(children);
-    view! { cx,
+
+    view! {
         <Suspense fallback=|| ()>
             {move || res.with(|data| view.with_value(|view| view(data)))}
         </Suspense>

@@ -1,7 +1,7 @@
 use crate::{ServerFn, ServerFnError};
 use leptos_reactive::{
     create_rw_signal, signal_prelude::*, spawn_local, store_value, ReadSignal,
-    RwSignal, Scope, StoredValue,
+    RwSignal, StoredValue,
 };
 use std::{cell::Cell, future::Future, pin::Pin, rc::Rc};
 
@@ -13,7 +13,8 @@ use std::{cell::Cell, future::Future, pin::Pin, rc::Rc};
 ///
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// async fn send_new_todo_to_api(task: String) -> usize {
 ///     // do something...
 ///     // return a task id
@@ -63,7 +64,8 @@ use std::{cell::Cell, future::Future, pin::Pin, rc::Rc};
 ///
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// // if there's a single argument, just use that
 /// let action1 = create_action(|input: &String| {
 ///     let input = input.clone();
@@ -202,7 +204,6 @@ where
     I: 'static,
     O: 'static,
 {
-    cx: Scope,
     /// How many times the action has successfully resolved.
     pub version: RwSignal<usize>,
     /// The current argument that was dispatched to the `async` function.
@@ -264,7 +265,8 @@ where
 ///
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// async fn send_new_todo_to_api(task: String) -> usize {
 ///     // do something...
 ///     // return a task id
@@ -314,7 +316,8 @@ where
 ///
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// // if there's a single argument, just use that
 /// let action1 = create_action(|input: &String| {
 ///     let input = input.clone();
@@ -350,7 +353,6 @@ where
     });
 
     Action(store_value(ActionState {
-        cx,
         version,
         url: None,
         input,
@@ -379,15 +381,13 @@ where
     any(debug_assertions, feature = "ssr"),
     tracing::instrument(level = "trace", skip_all,)
 )]
-pub fn create_server_action<S>(
-    cx: Scope,
-) -> Action<S, Result<S::Output, ServerFnError>>
+pub fn create_server_action<S>() -> Action<S, Result<S::Output, ServerFnError>>
 where
     S: Clone + ServerFn,
 {
     #[cfg(feature = "ssr")]
-    let c = move |args: &S| S::call_fn(args.clone(), cx);
+    let c = move |args: &S| S::call_fn(args.clone(), ());
     #[cfg(not(feature = "ssr"))]
-    let c = move |args: &S| S::call_fn_client(args.clone(), cx);
+    let c = move |args: &S| S::call_fn_client(args.clone(), ());
     create_action(c).using_server_fn::<S>()
 }

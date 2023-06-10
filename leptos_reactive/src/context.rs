@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 
-use crate::{runtime::with_runtime,Runtime, Scope};
+use crate::{runtime::with_runtime, Runtime};
 use std::any::{Any, TypeId};
 
 /// Provides a context value of type `T` to the current reactive [`Scope`](crate::Scope)

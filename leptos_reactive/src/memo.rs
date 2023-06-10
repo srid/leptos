@@ -1,9 +1,8 @@
 #![forbid(unsafe_code)]
 use crate::{
     create_effect, diagnostics::AccessDiagnostics, node::NodeId, on_cleanup,
-    with_runtime, AnyComputation, RuntimeId,
-    SignalDispose, SignalGet, SignalGetUntracked, SignalStream, SignalWith,
-    SignalWithUntracked, Runtime
+    with_runtime, AnyComputation, Runtime, RuntimeId, SignalDispose, SignalGet,
+    SignalGetUntracked, SignalStream, SignalWith, SignalWithUntracked,
 };
 use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, rc::Rc};
 
@@ -83,9 +82,7 @@ use std::{any::Any, cell::RefCell, fmt, marker::PhantomData, rc::Rc};
 )]
 #[track_caller]
 #[inline(always)]
-pub fn create_memo<T>(
-    f: impl Fn(Option<&T>) -> T + 'static,
-) -> Memo<T>
+pub fn create_memo<T>(f: impl Fn(Option<&T>) -> T + 'static) -> Memo<T>
 where
     T: PartialEq + 'static,
 {
@@ -443,9 +440,7 @@ impl<T: Clone> SignalStream<T> for Memo<T> {
             )
         )
     )]
-    fn to_stream(
-        &self,
-    ) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
+    fn to_stream(&self) -> std::pin::Pin<Box<dyn futures::Stream<Item = T>>> {
         let (tx, rx) = futures::channel::mpsc::unbounded();
 
         let close_channel = tx.clone();

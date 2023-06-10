@@ -5,9 +5,9 @@ use crate::{
         Disposer, NodeId, ReactiveNode, ReactiveNodeState, ReactiveNodeType,
     },
     AnyComputation, AnyResource, Effect, Memo, MemoState, ReadSignal,
-    ResourceId, ResourceState, RwSignal, Scope, ScopeDisposer, ScopeId,
-    ScopeProperty, SerializableResource, SpecialNonReactiveZone, StoredValueId,
-    Trigger, UnserializableResource, WriteSignal, create_trigger,
+    ResourceId, ResourceState, RwSignal, SerializableResource,
+    SpecialNonReactiveZone, StoredValueId, Trigger, UnserializableResource,
+    WriteSignal,
 };
 use cfg_if::cfg_if;
 use core::hash::BuildHasherDefault;
@@ -132,17 +132,14 @@ impl Runtime {
 
     pub(crate) fn cleanup_node(&self, node_id: NodeId) {
         // first, run our cleanups, if any
-        if let Some(cleanups) =
-            self.on_cleanups.borrow_mut().remove(node_id)
-        {
+        if let Some(cleanups) = self.on_cleanups.borrow_mut().remove(node_id) {
             for cleanup in cleanups {
                 cleanup();
             }
         }
 
         // dispose of any of our properties
-        let properties =
-            { self.node_properties.borrow_mut().remove(node_id) };
+        let properties = { self.node_properties.borrow_mut().remove(node_id) };
         if let Some(properties) = properties {
             let mut nodes = self.nodes.borrow_mut();
             let mut cleanups = self.on_cleanups.borrow_mut();
@@ -548,15 +545,30 @@ pub(crate) fn with_runtime<T>(
     }
 }
 
-#[doc(hidden)]
 #[must_use = "Runtime will leak memory if Runtime::dispose() is never called."]
-/// Creates a new reactive [`Runtime`]. This should almost always be handled by the framework.
+/// Creates a new reactive [`Runtime`].
+/// This should almost always be handled by the framework, not called directly in user code.
 pub fn create_runtime() -> RuntimeId {
     cfg_if! {
         if #[cfg(any(feature = "csr", feature = "hydrate"))] {
             Default::default()
         } else {
             RUNTIMES.with(|runtimes| runtimes.borrow_mut().insert(Runtime::new()))
+        }
+    }
+}
+
+#[must_use = "Runtime will leak memory if Runtime::dispose() is never called."]
+/// Creates a new reactive [`Runtime`] and loads it as the current runtime.
+/// This should almost always be handled by the framework, not called directly in user code.
+pub fn enter_new_runtime() -> RuntimeId {
+    cfg_if! {
+        if #[cfg(any(feature = "csr", feature = "hydrate"))] {
+            Default::default()
+        } else {
+            let id = RUNTIMES.with(|runtimes| runtimes.borrow_mut().insert(Runtime::new()));
+            Runtime::set_runtime(Some(id));
+            id
         }
     }
 }
@@ -585,9 +597,13 @@ pub struct RuntimeId;
 /// running within it.
 pub fn with_current_owner<T, U>(
     f: impl Fn(T) -> U + 'static,
-) -> impl Fn(T) -> (U, Disposer) where T: 'static {
+) -> impl Fn(T) -> (U, Disposer)
+where
+    T: 'static,
+{
     let runtime_id = Runtime::current();
-    let owner = with_runtime(runtime_id, |runtime| runtime.owner.get()).expect("runtime should be alive when created");
+    let owner = with_runtime(runtime_id, |runtime| runtime.owner.get())
+        .expect("runtime should be alive when created");
     move |t| {
         with_runtime(runtime_id, |runtime| {
             let prev_observer = runtime.observer.take();
@@ -619,71 +635,19 @@ pub fn with_current_owner<T, U>(
 }
 
 impl RuntimeId {
-    // TODO remove this
     /// Removes the runtime, disposing all its child [`Scope`](crate::Scope)s.
     pub fn dispose(self) {
         cfg_if! {
             if #[cfg(not(any(feature = "csr", feature = "hydrate")))] {
                 let runtime = RUNTIMES.with(move |runtimes| runtimes.borrow_mut().remove(self));
+                CURRENT_RUNTIME.with(|runtime| {
+                    if runtime.get() == Some(self) {
+                        runtime.take();
+                    }
+                });
                 drop(runtime);
             }
         }
-    }
-
-    // TODO remove this
-    pub(crate) fn raw_scope_and_disposer(self) -> (Scope, ScopeDisposer) {
-        with_runtime(self, |runtime| {
-            let scope = Scope {
-                runtime: self,
-                id: Default::default(),
-            };
-            let disposer = ScopeDisposer(scope);
-            (scope, disposer)
-        })
-        .expect(
-            "tried to create raw scope in a runtime that has already been \
-             disposed",
-        )
-    }
-
-    // TODO remove this
-    pub(crate) fn raw_scope_and_disposer_with_parent(
-        self,
-        parent: Option<Scope>,
-    ) -> (Scope, ScopeDisposer) {
-        with_runtime(self, |runtime| {
-            let scope = Scope {
-                runtime: self,
-                id: Default::default(),
-            };
-            let disposer = ScopeDisposer(scope);
-            (scope, disposer)
-        })
-        .expect("tried to crate scope in a runtime that has been disposed")
-    }
-
-    // TODO remove this
-    #[inline(always)]
-    pub(crate) fn run_scope_undisposed<T>(
-        self,
-        f: impl FnOnce(Scope) -> T,
-        parent: Option<Scope>,
-    ) -> (T, ScopeId, ScopeDisposer) {
-        let (scope, disposer) = self.raw_scope_and_disposer_with_parent(parent);
-
-        (f(scope), scope.id, disposer)
-    }
-
-    // TODO remove this
-    #[inline(always)]
-    pub(crate) fn run_scope<T>(
-        self,
-        f: impl FnOnce(Scope) -> T,
-        parent: Option<Scope>,
-    ) -> T {
-        let (ret, _, disposer) = self.run_scope_undisposed(f, parent);
-        disposer.dispose();
-        ret
     }
 
     #[track_caller]
@@ -1045,5 +1009,89 @@ impl Drop for SetObserverOnDrop {
         _ = with_runtime(self.0, |rt| {
             rt.observer.set(self.1);
         });
+    }
+}
+
+/// Batches any reactive updates, preventing effects from running until the whole
+/// function has run. This allows you to prevent rerunning effects if multiple
+/// signal updates might cause the same effect to run.
+///
+/// # Panics
+/// Panics if the runtime has already been disposed.
+#[cfg_attr(
+    any(debug_assertions, features = "ssr"),
+    instrument(level = "trace", skip_all,)
+)]
+#[inline(always)]
+pub fn batch<T>(f: impl FnOnce() -> T) -> T {
+    let runtime_id = Runtime::current();
+    with_runtime(runtime_id, move |runtime| {
+        let batching = SetBatchingOnDrop(runtime_id, runtime.batching.get());
+        runtime.batching.set(true);
+
+        let val = f();
+
+        runtime.batching.set(batching.1);
+        std::mem::forget(batching);
+
+        runtime.run_effects();
+        val
+    })
+    .expect("tried to run a batched update in a runtime that has been disposed")
+}
+
+struct SetBatchingOnDrop(RuntimeId, bool);
+
+impl Drop for SetBatchingOnDrop {
+    fn drop(&mut self) {
+        _ = with_runtime(self.0, |rt| {
+            rt.batching.set(self.1);
+        });
+    }
+}
+
+/// Creates a cleanup function, which will be run when a [`Scope`] is disposed.
+///
+/// It runs after child scopes have been disposed, but before signals, effects, and resources
+/// are invalidated.
+#[inline(always)]
+pub fn on_cleanup(cleanup_fn: impl FnOnce() + 'static) {
+    push_cleanup(Box::new(cleanup_fn))
+}
+
+#[cfg_attr(
+    any(debug_assertions, features = "ssr"),
+    instrument(level = "trace", skip_all,)
+)]
+fn push_cleanup(cleanup_fn: Box<dyn FnOnce()>) {
+    _ = with_runtime(Runtime::current(), |runtime| {
+        if let Some(owner) = runtime.owner.get() {
+            let mut cleanups = runtime.on_cleanups.borrow_mut();
+            if let Some(entries) = cleanups.get_mut(owner) {
+                entries.push(cleanup_fn);
+            } else {
+                cleanups.insert(owner, vec![cleanup_fn]);
+            }
+        }
+    });
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum ScopeProperty {
+    Trigger(NodeId),
+    Signal(NodeId),
+    Effect(NodeId),
+    Resource(ResourceId),
+    StoredValue(StoredValueId),
+}
+
+impl ScopeProperty {
+    pub fn to_node_id(self) -> Option<NodeId> {
+        match self {
+            Self::Trigger(node) | Self::Signal(node) | Self::Effect(node) => {
+                Some(node)
+            }
+            _ => None,
+        }
     }
 }

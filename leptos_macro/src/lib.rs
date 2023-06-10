@@ -44,7 +44,8 @@ mod template;
 /// 1. Text content should be provided as a Rust string, i.e., double-quoted:
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// view! { cx, <p>"Here’s some text"</p> };
 /// # }
@@ -54,7 +55,8 @@ mod template;
 /// 2. Self-closing tags need an explicit `/` as in XML/XHTML
 /// ```rust,compile_fail
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// // ❌ not like this
 /// view! { cx, <input type="text" name="name"> }
@@ -64,7 +66,8 @@ mod template;
 /// ```
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// // ✅ add that slash
 /// view! { cx, <input type="text" name="name" /> }
@@ -96,7 +99,8 @@ mod template;
 ///
 /// ```rust,ignore
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (count, set_count) = create_signal(cx, 0);
 ///
@@ -118,7 +122,8 @@ mod template;
 ///    based on the event name.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// view! {
 ///   cx,
@@ -138,7 +143,8 @@ mod template;
 ///    and `None` deletes the property.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (name, set_name) = create_signal(cx, "Alice".to_string());
 ///
@@ -160,7 +166,8 @@ mod template;
 /// 7. Classes can be toggled with `class:` attributes, which take a `bool` (or a signal that returns a `bool`).
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (count, set_count) = create_signal(cx, 2);
 /// view! { cx, <div class:hidden-div={move || count.get() < 3}>"Now you see me, now you don’t."</div> }
@@ -172,7 +179,8 @@ mod template;
 /// Class names can include dashes, but cannot (at the moment) include a dash-separated segment of only numbers.
 /// ```rust,compile_fail
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (count, set_count) = create_signal(cx, 2);
 /// // `hidden-div-25` is invalid at the moment
@@ -185,7 +193,8 @@ mod template;
 /// However, you can pass arbitrary class names using the syntax `class=("name", value)`.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (count, set_count) = create_signal(cx, 2);
 /// // this allows you to use CSS frameworks that include complex class names
@@ -204,7 +213,8 @@ mod template;
 /// 8. Individual styles can also be set with `style:` or `style=("property-name", value)` syntax.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let (x, set_x) = create_signal(cx, 0);
 /// let (y, set_y) = create_signal(cx, 0);
@@ -227,7 +237,8 @@ mod template;
 ///    [NodeRef](https://docs.rs/leptos/latest/leptos/struct.NodeRef.html) to use later.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// use leptos::html::Input;
 ///
@@ -245,7 +256,8 @@ mod template;
 ///    provided by a scoped styling library.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let class = "mycustomclass";
 /// view! { cx, class = class,
@@ -263,7 +275,8 @@ mod template;
 ///     only contains trusted input.
 /// ```rust
 /// # use leptos::*;
-/// # run_scope(create_runtime(), |cx| {
+/// # let runtime = enter_new_runtime();
+/// # create_root(|_| {
 /// # if !cfg!(any(feature = "csr", feature = "hydrate")) {
 /// let html = "<p>This HTML will be injected.</p>";
 /// view! { cx,
@@ -322,9 +335,7 @@ pub fn view(tokens: TokenStream) -> TokenStream {
             if *first == "class" && eq.as_char() == '=' =>
         {
             match &fourth {
-                Some(TokenTree::Punct(comma))
-                    if comma.as_char() == ',' =>
-                {
+                Some(TokenTree::Punct(comma)) if comma.as_char() == ',' => {
                     third.clone()
                 }
                 _ => {
@@ -387,11 +398,8 @@ fn normalized_call_site(site: proc_macro::Span) -> Option<String> {
 #[proc_macro]
 pub fn template(tokens: TokenStream) -> TokenStream {
     if cfg!(feature = "csr") {
-        match parse(tokens)
-        {
-            Ok(nodes) => render_template(
-                &nodes,
-            ),
+        match parse(tokens) {
+            Ok(nodes) => render_template(&nodes),
             Err(error) => error.to_compile_error(),
         }
         .into()

@@ -1,6 +1,6 @@
 use leptos_dom::{DynChild, HydrationCtx, IntoView};
 use leptos_macro::component;
-use leptos_reactive::{provide_context, Scope, SuspenseContext};
+use leptos_reactive::{provide_context, SuspenseContext, SharedContext};
 use std::rc::Rc;
 
 /// If any [Resources](leptos_reactive::Resource) are read in the `children` of this
@@ -107,7 +107,7 @@ where
                     else {
                         HydrationCtx::continue_from(current_id);
 
-                        Scope::register_suspense(
+                        SharedContext::register_suspense(
                             context,
                             &current_id.to_string(),
                             // out-of-order streaming

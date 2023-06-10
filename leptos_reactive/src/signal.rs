@@ -6,7 +6,7 @@ use crate::{
     node::NodeId,
     on_cleanup,
     runtime::{with_runtime, RuntimeId},
-    Runtime, Scope, ScopeProperty,
+    Runtime,
 };
 use futures::Stream;
 use std::{
@@ -325,10 +325,7 @@ pub trait SignalDispose {
     )
 )]
 #[track_caller]
-pub fn create_signal<T>(
-    
-    value: T,
-) -> (ReadSignal<T>, WriteSignal<T>) {
+pub fn create_signal<T>(value: T) -> (ReadSignal<T>, WriteSignal<T>) {
     Runtime::current().create_signal(value)
 }
 
@@ -340,14 +337,10 @@ pub fn create_signal<T>(
 /// **Note**: If used on the server side during server rendering, this will return `None`
 /// immediately and not begin driving the stream.
 #[cfg_attr(
- any(debug_assertions, features="ssr"),
-    instrument(
-        level = "trace",
-        skip_all,
-    )
+    any(debug_assertions, features = "ssr"),
+    instrument(level = "trace", skip_all,)
 )]
 pub fn create_signal_from_stream<T>(
-    
     #[allow(unused_mut)] // allowed because needed for SSR
     mut stream: impl Stream<Item = T> + Unpin + 'static,
 ) -> ReadSignal<Option<T>> {

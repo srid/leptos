@@ -26,22 +26,21 @@ use std::{
 )]
 #[component]
 pub fn Routes(
-    cx: Scope,
     /// Base path relative at which the routes are mounted.
     #[prop(optional)]
     base: Option<String>,
     children: Children,
 ) -> impl IntoView {
-    let router = use_context::<RouterContext>(cx)
+    let router = use_context::<RouterContext>()
         .expect("<Routes/> component should be nested within a <Router/>.");
 
     let base_route = router.base();
     let base = base.unwrap_or_default();
 
-    Branches::initialize(&base, children(cx));
+    Branches::initialize(&base, children());
 
     #[cfg(feature = "ssr")]
-    if let Some(context) = use_context::<crate::PossibleBranchContext>(cx) {
+    if let Some(context) = use_context::<crate::PossibleBranchContext>() {
         Branches::with(&base, |branches| {
             *context.0.borrow_mut() = branches.to_vec()
         });
@@ -51,14 +50,13 @@ pub fn Routes(
     let current_route = next_route;
 
     let root_equal = Rc::new(Cell::new(true));
-    let route_states =
-        route_states(cx, base, &router, current_route, &root_equal);
+    let route_states = route_states(base, &router, current_route, &root_equal);
 
     let id = HydrationCtx::id();
-    let root = root_route(cx, base_route, route_states, root_equal);
+    let root = root_route(base_route, route_states, root_equal);
 
     leptos::leptos_dom::DynChild::new_with_id(id, move || root.get())
-        .into_view(cx)
+        .into_view()
 }
 
 /// Contains route definitions and manages the actual routing process, with animated transitions
@@ -81,7 +79,6 @@ pub fn Routes(
 /// **Note:** Your application should only include one `<AnimatedRoutes/>` or `<Routes/>` component.
 #[component]
 pub fn AnimatedRoutes(
-    cx: Scope,
     /// Base classes to be applied to the `<div>` wrapping the routes during any animation state.
     #[prop(optional, into)]
     class: Option<TextProp>,
@@ -108,16 +105,16 @@ pub fn AnimatedRoutes(
     finally: Option<&'static str>,
     children: Children,
 ) -> impl IntoView {
-    let router = use_context::<RouterContext>(cx)
+    let router = use_context::<RouterContext>()
         .expect("<Routes/> component should be nested within a <Router/>.");
 
     let base_route = router.base();
     let base = base.unwrap_or_default();
 
-    Branches::initialize(&base, children(cx));
+    Branches::initialize(&base, children());
 
     #[cfg(feature = "ssr")]
-    if let Some(context) = use_context::<crate::PossibleBranchContext>(cx) {
+    if let Some(context) = use_context::<crate::PossibleBranchContext>() {
         Branches::with(&base, |branches| {
             *context.0.borrow_mut() = branches.to_vec()
         });
@@ -131,13 +128,13 @@ pub fn AnimatedRoutes(
         outro_back,
         intro_back,
     };
-    let is_back = use_is_back_navigation(cx);
+    let is_back = use_is_back_navigation();
     let (animation_state, set_animation_state) =
-        create_signal(cx, AnimationState::Finally);
+        create_signal(AnimationState::Finally);
     let next_route = router.pathname();
 
     let is_complete = Rc::new(Cell::new(true));
-    let animation_and_route = create_memo(cx, {
+    let animation_and_route = create_memo({
         let is_complete = Rc::clone(&is_complete);
         let base = base.clone();
 
@@ -171,22 +168,20 @@ pub fn AnimatedRoutes(
             }
         }
     });
-    let current_animation =
-        create_memo(cx, move |_| animation_and_route.get().0);
-    let current_route = create_memo(cx, move |_| animation_and_route.get().1);
+    let current_animation = create_memo(move |_| animation_and_route.get().0);
+    let current_route = create_memo(move |_| animation_and_route.get().1);
 
     let root_equal = Rc::new(Cell::new(true));
-    let route_states =
-        route_states(cx, base, &router, current_route, &root_equal);
+    let route_states = route_states(base, &router, current_route, &root_equal);
 
-    let root = root_route(cx, base_route, route_states, root_equal);
-    let node_ref = create_node_ref::<html::Div>(cx);
+    let root = root_route(base_route, route_states, root_equal);
+    let node_ref = create_node_ref::<html::Div>();
 
-    html::div(cx)
+    html::div()
         .node_ref(node_ref)
         .attr(
             "class",
-            (cx, move || {
+            (move || {
                 let animation_class = match current_animation.get() {
                     AnimationState::Outro => outro.unwrap_or_default(),
                     AnimationState::Start => start.unwrap_or_default(),
@@ -220,7 +215,7 @@ pub fn AnimatedRoutes(
             }
         })
         .child(move || root.get())
-        .into_view(cx)
+        .into_view()
 }
 
 pub(crate) struct Branches;
@@ -279,7 +274,6 @@ impl Branches {
 }
 
 fn route_states(
-    cx: Scope,
     base: String,
     router: &RouterContext,
     current_route: Memo<String>,
@@ -287,14 +281,14 @@ fn route_states(
 ) -> Memo<RouterState> {
     // whenever path changes, update matches
     let matches =
-        create_memo(cx, move |_| get_route_matches(&base, current_route.get()));
+        create_memo(move |_| get_route_matches(&base, current_route.get()));
 
     // iterate over the new matches, reusing old routes when they are the same
     // and replacing them with new routes when they differ
     let next: Rc<RefCell<Vec<RouteContext>>> = Default::default();
     let router = Rc::clone(&router.inner);
 
-    create_memo(cx, {
+    create_memo({
         let root_equal = Rc::clone(root_equal);
         move |prev: Option<&RouterState>| {
             root_equal.set(true);
@@ -340,15 +334,14 @@ fn route_states(
 
                         let next = next.clone();
                         let next_ctx = RouteContext::new(
-                            cx,
                             &RouterContext {
                                 inner: Rc::clone(&router),
                             },
                             {
                                 let next = next.clone();
-                                move |cx| {
+                                move || {
                                     if let Some(route_states) =
-                                        use_context::<Memo<RouterState>>(cx)
+                                        use_context::<Memo<RouterState>>()
                                     {
                                         route_states.with(|route_states| {
                                             let routes =
@@ -402,38 +395,37 @@ fn route_states(
 }
 
 fn root_route(
-    cx: Scope,
     base_route: RouteContext,
     route_states: Memo<RouterState>,
     root_equal: Rc<Cell<bool>>,
 ) -> Signal<Option<View>> {
     let root_cx = RefCell::new(None);
 
-    let root_view = create_memo(cx, {
+    let root_view = create_memo({
         let root_equal = Rc::clone(&root_equal);
         move |prev| {
-            provide_context(cx, route_states);
+            provide_context(route_states);
             route_states.with(|state| {
                 if state.routes.borrow().is_empty() {
-                    Some(base_route.outlet(cx).into_view(cx))
+                    Some(base_route.outlet().into_view())
                 } else {
                     let root = state.routes.borrow();
                     let root = root.get(0);
                     if let Some(route) = root {
-                        provide_context(cx, route.clone());
+                        provide_context(route.clone());
                     }
 
                     if prev.is_none() || !root_equal.get() {
-                        let (root_view, _) = cx.run_child_scope(|cx| {
+                        let (root_view, _) = cx.run_child_scope(|| {
                             let prev_cx = std::mem::replace(
                                 &mut *root_cx.borrow_mut(),
-                                Some(cx),
+                                Some(),
                             );
                             if let Some(prev_cx) = prev_cx {
                                 prev_cx.dispose();
                             }
                             root.as_ref()
-                                .map(|route| route.outlet(cx).into_view(cx))
+                                .map(|route| route.outlet().into_view())
                         });
                         root_view
                     } else {
@@ -445,13 +437,13 @@ fn root_route(
     });
 
     if cfg!(any(feature = "csr", feature = "hydrate"))
-        && use_context::<SetIsRouting>(cx).is_some()
+        && use_context::<SetIsRouting>().is_some()
     {
-        let global_suspense = expect_context::<GlobalSuspenseContext>(cx);
+        let global_suspense = expect_context::<GlobalSuspenseContext>();
 
-        let (current_view, set_current_view) = create_signal(cx, None);
+        let (current_view, set_current_view) = create_signal(None);
 
-        create_effect(cx, move |prev| {
+        create_effect(move |prev| {
             let root = root_view.get();
             let is_fallback =
                 !global_suspense.with_inner(SuspenseContext::ready);
