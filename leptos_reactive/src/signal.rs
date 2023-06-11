@@ -703,7 +703,15 @@ where
 {
     #[inline(always)]
     pub(crate) fn with_no_subscription<U>(&self, f: impl FnOnce(&T) -> U) -> U {
-        self.id.with_no_subscription(self.runtime, f)
+        self.id.try_with_no_subscription_by_id(self.runtime, f).unwrap_or_else(|_| {
+            #[cfg(not(debug_assertions))]
+            {panic!("tried to access ReadSignal that has been disposed")}
+            #[cfg(debug_assertions)]
+            {panic!("tried to access ReadSignal<{}> defined at {}, but it has already been disposed",
+            std::any::type_name::<T>(),
+            self.defined_at
+        )}
+    })
     }
 
     /// Applies the function to the current Signal, if it exists, and subscribes
@@ -1189,7 +1197,15 @@ impl<T: Clone> SignalGetUntracked<T> for RwSignal<T> {
         )
     )]
     fn get_untracked(&self) -> T {
-        self.id.with_no_subscription(self.runtime, Clone::clone)
+        self.id.try_with_no_subscription_by_id(self.runtime, Clone::clone).unwrap_or_else(|_| {
+            #[cfg(not(debug_assertions))]
+            {panic!("tried to access RwSignal that has been disposed")}
+            #[cfg(debug_assertions)]
+            {panic!("tried to access RwSignal<{}> defined at {}, but it has already been disposed",
+            std::any::type_name::<T>(),
+            self.defined_at
+        )}
+    })
     }
 
     #[cfg_attr(
@@ -1236,7 +1252,15 @@ impl<T> SignalWithUntracked<T> for RwSignal<T> {
     )]
     #[inline(always)]
     fn with_untracked<O>(&self, f: impl FnOnce(&T) -> O) -> O {
-        self.id.with_no_subscription(self.runtime, f)
+        self.id.try_with_no_subscription_by_id(self.runtime, f).unwrap_or_else(|_| {
+            #[cfg(not(debug_assertions))]
+            {panic!("tried to access RwSignal that has been disposed")}
+            #[cfg(debug_assertions)]
+            {panic!("tried to access RwSignal<{}> defined at {}, but it has already been disposed",
+            std::any::type_name::<T>(),
+            self.defined_at
+        )}
+    })
     }
 
     #[cfg_attr(
@@ -1836,6 +1860,21 @@ impl NodeId {
         Ok(node.value())
     }
 
+    #[inline(always)]
+    pub(crate) fn try_with_no_subscription_by_id<T, U>(
+        &self,
+        runtime: RuntimeId,
+        f: impl FnOnce(&T) -> U,
+    ) -> Result<U, SignalError>
+    where
+        T: 'static,
+    {
+        with_runtime(runtime, |runtime| {
+            self.try_with_no_subscription(runtime, f)
+        })
+        .expect("runtime to be alive")
+    }
+
     #[track_caller]
     #[inline(always)]
     pub(crate) fn try_with_no_subscription<T, U>(
@@ -1869,21 +1908,6 @@ impl NodeId {
         self.subscribe(runtime, diagnostics);
 
         self.try_with_no_subscription(runtime, f)
-    }
-
-    #[inline(always)]
-    pub(crate) fn with_no_subscription<T, U>(
-        &self,
-        runtime: RuntimeId,
-        f: impl FnOnce(&T) -> U,
-    ) -> U
-    where
-        T: 'static,
-    {
-        with_runtime(runtime, |runtime| {
-            self.try_with_no_subscription(runtime, f).unwrap()
-        })
-        .expect("runtime to be alive")
     }
 
     #[inline(always)]
