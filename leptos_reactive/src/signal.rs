@@ -701,13 +701,18 @@ impl<T> ReadSignal<T>
 where
     T: 'static,
 {
+    #[track_caller]
     #[inline(always)]
     pub(crate) fn with_no_subscription<U>(&self, f: impl FnOnce(&T) -> U) -> U {
+        #[cfg(debug_assertions)]
+        let caller = std::panic::Location::caller();
+
         self.id.try_with_no_subscription_by_id(self.runtime, f).unwrap_or_else(|_| {
             #[cfg(not(debug_assertions))]
             {panic!("tried to access ReadSignal that has been disposed")}
             #[cfg(debug_assertions)]
-            {panic!("tried to access ReadSignal<{}> defined at {}, but it has already been disposed",
+            {panic!("at {}, tried to access ReadSignal<{}> defined at {}, but it has already been disposed",
+            caller,
             std::any::type_name::<T>(),
             self.defined_at
         )}
@@ -1196,12 +1201,17 @@ impl<T: Clone> SignalGetUntracked<T> for RwSignal<T> {
             )
         )
     )]
+    #[track_caller]
     fn get_untracked(&self) -> T {
+        #[cfg(debug_assertions)]
+        let caller = std::panic::Location::caller();
+
         self.id.try_with_no_subscription_by_id(self.runtime, Clone::clone).unwrap_or_else(|_| {
             #[cfg(not(debug_assertions))]
             {panic!("tried to access RwSignal that has been disposed")}
             #[cfg(debug_assertions)]
-            {panic!("tried to access RwSignal<{}> defined at {}, but it has already been disposed",
+            {panic!("at {}, tried to access RwSignal<{}> defined at {}, but it has already been disposed",
+            caller,
             std::any::type_name::<T>(),
             self.defined_at
         )}
@@ -1221,18 +1231,13 @@ impl<T: Clone> SignalGetUntracked<T> for RwSignal<T> {
             )
         )
     )]
+    #[track_caller]
     fn try_get_untracked(&self) -> Option<T> {
-        match with_runtime(self.runtime, |runtime| {
-            self.id.try_with_no_subscription(runtime, Clone::clone)
+        with_runtime(self.runtime, |runtime| {
+            self.id.try_with_no_subscription(runtime, Clone::clone).ok()
         })
-        .expect("runtime to be alive")
-        {
-            Ok(t) => t,
-            Err(_) => panic_getting_dead_signal(
-                #[cfg(any(debug_assertions, feature = "ssr"))]
-                self.defined_at,
-            ),
-        }
+        .ok()
+        .flatten()
     }
 }
 
