@@ -112,7 +112,7 @@ impl ToTokens for Model {
             ret,
         } = self;
 
-        let no_props = props.len() == 1;
+        let no_props = props.is_empty();
 
         let mut body = body.to_owned();
 
