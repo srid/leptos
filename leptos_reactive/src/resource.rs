@@ -466,7 +466,7 @@ where
     /// resource.
     ///
     /// If you want to get the value without cloning it, use [`Resource::with`].
-    /// (`value.read(cx)` is equivalent to `value.with(T::clone)`.)
+    /// (`value.read()` is equivalent to `value.with(T::clone)`.)
     #[cfg_attr(
         any(debug_assertions, feature = "ssr"),
         instrument(level = "info", skip_all,)
