@@ -1,6 +1,6 @@
 use crate::{
     animation::{Animation, AnimationState},
-    use_is_back_navigation, use_route, SetIsRouting,
+    use_is_back_navigation, use_route, SetIsRouting, use_location, RouteContext,
 };
 use leptos::{leptos_dom::HydrationCtx, *};
 use std::{cell::Cell, rc::Rc};
@@ -16,24 +16,43 @@ use web_sys::AnimationEvent;
 pub fn Outlet() -> impl IntoView {
     let id = HydrationCtx::id();
     let route = use_route();
+    let location = use_location();
+
+    let child_id = create_memo({let route = route.clone(); move |_| {
+        location.pathname.track();
+        route.child().map(|child| child.id())
+    }});
 
     let is_showing = Rc::new(Cell::new(None::<usize>));
     let (outlet, set_outlet) = create_signal(None::<View>);
-    create_isomorphic_effect(move |_| {
+    let build_outlet = with_current_owner(|child: RouteContext| {
+        provide_context(child.clone());
+        child.outlet().into_view()
+    });
+    create_isomorphic_effect(move |prev_disposer| {
+        child_id.track();
         match (route.child(), &is_showing.get()) {
-            (None, prev) => {
+            (None, _) => {
                 set_outlet.set(None);
+
+                // previous disposer will be dropped, and therefore disposed
+                None
             }
             (Some(child), Some(is_showing_val))
                 if child.id() == *is_showing_val =>
             {
                 // do nothing: we don't need to rerender the component, because it's the same
+
+                // returning the disposer keeps it alive until the next iteration
+                prev_disposer.flatten()
             }
-            (Some(child), prev) => {
-                provide_context(child.clone());
-                set_outlet
-                    .set(Some(child.outlet().into_view()));
+            (Some(child), _) => {
                 is_showing.set(Some(child.id()));
+                let (outlet, disposer) = build_outlet(child);
+                set_outlet
+                    .set(Some(outlet));
+                // returning the disposer keeps it alive until the next iteration
+                Some(disposer)
             }
         }
     });
