@@ -406,6 +406,7 @@ fn root_route(
     route_states: Memo<RouterState>,
     root_equal: Rc<Cell<bool>>,
 ) -> Signal<Option<View>> {
+    let root_disposer = RefCell::new(None);
     let outlet = with_current_owner(|route: RouteContext| {
         provide_context(route.clone());
         route.outlet().into_view()
@@ -417,7 +418,10 @@ fn root_route(
             route_states.with(|state| {
                 if state.routes.borrow().is_empty() {
                     let (outlet, disposer) = outlet(base_route.clone());
-                    std::mem::forget(disposer); // TODO
+                    drop(std::mem::replace(
+                        &mut *root_disposer.borrow_mut(),
+                        Some(disposer),
+                    ));
                     Some(outlet)
                 } else {
                     let root = state.routes.borrow();
@@ -427,7 +431,10 @@ fn root_route(
                         root.as_ref()
                             .map(|route| {
                                 let (outlet, disposer) = outlet((*route).clone());
-                                std::mem::forget(disposer); // TODO
+                                drop(std::mem::replace(
+                                    &mut *root_disposer.borrow_mut(),
+                                    Some(disposer),
+                                ));
                                 outlet
                             })
                     } else {
