@@ -1,4 +1,4 @@
-use leptos::{Scope, Serializable};
+use leptos::Serializable;
 use serde::{Deserialize, Serialize};
 
 pub fn story(path: &str) -> String {
@@ -10,7 +10,7 @@ pub fn user(path: &str) -> String {
 }
 
 #[cfg(not(feature = "ssr"))]
-pub async fn fetch_api<T>( path: &str) -> Option<T>
+pub async fn fetch_api<T>(path: &str) -> Option<T>
 where
     T: Serializable,
 {
@@ -38,7 +38,7 @@ where
 }
 
 #[cfg(feature = "ssr")]
-pub async fn fetch_api<T>(_ path: &str) -> Option<T>
+pub async fn fetch_api<T>(path: &str) -> Option<T>
 where
     T: Serializable,
 {

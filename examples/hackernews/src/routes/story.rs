@@ -7,17 +7,13 @@ use leptos_router::*;
 pub fn Story() -> impl IntoView {
     let params = use_params_map();
     let story = create_resource(
-        cx,
         move || params().get("id").cloned().unwrap_or_default(),
         move |id| async move {
             if id.is_empty() {
                 None
             } else {
-                api::fetch_api::<api::Story>(
-                    cx,
-                    &api::story(&format!("item/{id}")),
-                )
-                .await
+                api::fetch_api::<api::Story>(&api::story(&format!("item/{id}")))
+                    .await
             }
         },
     );
@@ -28,13 +24,13 @@ pub fn Story() -> impl IntoView {
             .unwrap_or_else(|| "Loading story...".to_string())
     };
 
-    view! { cx,
+    view! {
         <>
             <Meta name="description" content=meta_description/>
                 <Suspense fallback=|| view! { "Loading..." }>
                     {move || story.read().map(|story| match story {
                         None => view! {  <div class="item-view">"Error loading this story."</div> },
-                        Some(story) => view! { cx,
+                        Some(story) => view! {
                             <div class="item-view">
                                 <div class="item-view-header">
                                 <a href=story.url target="_blank">
@@ -75,10 +71,10 @@ pub fn Story() -> impl IntoView {
 }
 
 #[component]
-pub fn Comment( comment: api::Comment) -> impl IntoView {
+pub fn Comment(comment: api::Comment) -> impl IntoView {
     let (open, set_open) = create_signal(true);
 
-    view! { cx,
+    view! {
         <li class="comment">
         <div class="by">
             <A href=format!("/users/{}", comment.user.clone().unwrap_or_default())>{comment.user.clone()}</A>
@@ -86,7 +82,7 @@ pub fn Comment( comment: api::Comment) -> impl IntoView {
         </div>
         <div class="text" inner_html=comment.content></div>
         {(!comment.comments.is_empty()).then(|| {
-            view! { cx,
+            view! {
                 <div>
                     <div class="toggle" class:open=open>
                         <a on:click=move |_| set_open.update(|n| *n = !*n)>
@@ -102,7 +98,7 @@ pub fn Comment( comment: api::Comment) -> impl IntoView {
                     </div>
                     {move || open().then({
                         let comments = comment.comments.clone();
-                        move || view! { cx,
+                        move || view! {
                             <ul class="comment-children">
                                 <For
                                     each=move || comments.clone()

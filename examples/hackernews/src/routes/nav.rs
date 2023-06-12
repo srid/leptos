@@ -1,4 +1,4 @@
-use leptos::{component, view, IntoView, Scope};
+use leptos::{component, view, IntoView};
 use leptos_router::*;
 
 #[component]
