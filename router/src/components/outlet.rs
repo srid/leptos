@@ -16,27 +16,26 @@ use web_sys::AnimationEvent;
 pub fn Outlet() -> impl IntoView {
     let id = HydrationCtx::id();
     let route = use_route();
+
+    let is_showing = Rc::new(Cell::new(None::<usize>));
     let (outlet, set_outlet) = create_signal(None::<View>);
-
-    let memoized_child = create_memo({
-        let route = route.clone();
-        move |_| {
-            leptos::log!("memoized_child");
-            route.child().map(|child| child.id())
-        }
-    });
-
     create_isomorphic_effect(move |_| {
-        leptos::log!("Outlet effect line 30");
-        memoized_child.track();
-        let child = untrack({
-            let route = route.clone();
-            move || route.child()
-        });
-        set_outlet.set(child.map(|child| {
-            provide_context(child.clone());
-            child.outlet().into_view()
-        }));
+        match (route.child(), &is_showing.get()) {
+            (None, prev) => {
+                set_outlet.set(None);
+            }
+            (Some(child), Some(is_showing_val))
+                if child.id() == *is_showing_val =>
+            {
+                // do nothing: we don't need to rerender the component, because it's the same
+            }
+            (Some(child), prev) => {
+                provide_context(child.clone());
+                set_outlet
+                    .set(Some(child.outlet().into_view()));
+                is_showing.set(Some(child.id()));
+            }
+        }
     });
 
     let outlet: Signal<Option<View>> =
@@ -78,10 +77,7 @@ pub fn Outlet() -> impl IntoView {
     leptos::leptos_dom::DynChild::new_with_id(id, move || outlet.get())
 }
 
-struct OutletChild {
-    id: usize,
-}
-/*
+/* 
 /// Displays the child route nested in a parent route, allowing you to control exactly where
 /// that child route is displayed. Renders nothing if there is no nested child.
 ///
@@ -121,7 +117,7 @@ pub fn AnimatedOutlet(
     finally: Option<&'static str>,
 ) -> impl IntoView {
     let route = use_route();
-    let is_showing = Rc::new(Cell::new(None::<(usize)>));
+    let is_showing = Rc::new(Cell::new(None::<usize>));
     let (outlet, set_outlet) = create_signal(None::<View>);
 
     let animation = Animation {
@@ -156,34 +152,28 @@ pub fn AnimatedOutlet(
             }
         }
     });
-    let current_animation =
-        create_memo(move |_| animation_and_outlet.get().0);
+    let current_animation = create_memo(move |_| animation_and_outlet.get().0);
     let current_outlet = create_memo(move |_| animation_and_outlet.get().1);
 
     create_isomorphic_effect(move |_| {
         match (route.child(), &is_showing.get()) {
             (None, prev) => {
-                if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
+                /* if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
                     prev_scope.dispose();
-                }
+                } */
                 set_outlet.set(None);
             }
-            (Some(child), Some((is_showing_val, _)))
+            (Some(child), Some(is_showing_val))
                 if child.id() == *is_showing_val =>
             {
                 // do nothing: we don't need to rerender the component, because it's the same
                 trigger_animation.set(());
             }
             (Some(child), prev) => {
-                if let Some(prev_scope) = prev.map(|(_, scope)| scope) {
-                    prev_scope.dispose();
-                }
-                _ = cx.child_scope(|child_cx| {
-                    provide_context(child_child.clone());
+                    //provide_context(child_child.clone());
                     set_outlet
-                        .set(Some(child.outlet(child_cx).into_view(child_cx)));
-                    is_showing.set(Some((child.id(), child_cx)));
-                });
+                        .set(Some(child.outlet().into_view()));
+                    is_showing.set(Some(child.id()));
             }
         }
     });
@@ -224,7 +214,7 @@ pub fn AnimatedOutlet(
         }
     };
 
-    view! { cx,
+    view! {
         <div class=class on:animationend=animationend>
             {move || current_outlet.get()}
         </div>

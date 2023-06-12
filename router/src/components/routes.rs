@@ -4,7 +4,7 @@ use crate::{
         expand_optionals, get_route_matches, join_paths, Branch, Matcher,
         RouteDefinition, RouteMatch,
     },
-    use_is_back_navigation, RouteContext, RouterContext, SetIsRouting,
+    use_is_back_navigation, RouteContext, RouterContext, SetIsRouting, RouterContextInner,
 };
 use leptos::{leptos_dom::HydrationCtx, *};
 use std::{
@@ -53,10 +53,12 @@ pub fn Routes(
     let route_states = route_states(base, &router, current_route, &root_equal);
 
     let id = HydrationCtx::id();
-    let root = root_route(base_route, route_states, root_equal);
+    let root_route = with_current_owner(move |(base_route, root_equal)| root_route(base_route, route_states, root_equal));
+    let (root, dis) = root_route((base_route, root_equal));
+    std::mem::forget(dis);
+
 
     leptos::leptos_dom::DynChild::new_with_id(id, move || {
-        leptos::log!("root.get");
         root.get()
     })
         .into_view()
@@ -291,6 +293,31 @@ fn route_states(
     let next: Rc<RefCell<Vec<RouteContext>>> = Default::default();
     let router = Rc::clone(&router.inner);
 
+    let create_route = with_current_owner(move |(router, next, matches, i): (Rc<RouterContextInner>, Rc<RefCell<Vec<RouteContext>>>, Memo<Rc<Vec<RouteMatch>>>, usize)| {
+        RouteContext::new(
+            &RouterContext {
+                inner: Rc::clone(&router),
+            },
+            {
+                let next = Rc::clone(&next);
+                move || {
+                    if let Some(route_states) =
+                        use_context::<Memo<RouterState>>()
+                    {
+                        route_states.with(|route_states| {
+                            let routes =
+                                route_states.routes.borrow();
+                            routes.get(i + 1).cloned()
+                        })
+                    } else {
+                        next.borrow().get(i + 1).cloned()
+                    }
+                }
+            },
+            move || matches.with(|m| m.get(i).cloned()),
+        )
+    });
+
     create_memo({
         let root_equal = Rc::clone(root_equal);
         move |prev: Option<&RouterState>| {
@@ -333,31 +360,8 @@ fn route_states(
                             root_equal.set(false);
                         }
 
-                        let next = next.clone();
-
-                        let next = next.clone();
-                        let next_ctx = RouteContext::new(
-                            &RouterContext {
-                                inner: Rc::clone(&router),
-                            },
-                            {
-                                let next = next.clone();
-                                move || {
-                                    if let Some(route_states) =
-                                        use_context::<Memo<RouterState>>()
-                                    {
-                                        route_states.with(|route_states| {
-                                            let routes =
-                                                route_states.routes.borrow();
-                                            routes.get(i + 1).cloned()
-                                        })
-                                    } else {
-                                        next.borrow().get(i + 1).cloned()
-                                    }
-                                }
-                            },
-                            move || matches.with(|m| m.get(i).cloned()),
-                        );
+                        let (next_ctx, disposer) = create_route((Rc::clone(&router), Rc::clone(&next), matches, i));
+                        std::mem::forget(disposer); // TODO
 
                         if let Some(next_ctx) = next_ctx {
                             if next.borrow().len() > i + 1 {
@@ -402,29 +406,28 @@ fn root_route(
     route_states: Memo<RouterState>,
     root_equal: Rc<Cell<bool>>,
 ) -> Signal<Option<View>> {
-    let outlet = with_current_owner(|route: RouteContext| route.outlet().into_view());
+    let outlet = with_current_owner(|route: RouteContext| {
+        provide_context(route.clone());
+        route.outlet().into_view()
+    });
     let root_view = create_memo({
         let root_equal = Rc::clone(&root_equal);
         move |prev| {
-            leptos::log!("root_route");
             provide_context(route_states);
             route_states.with(|state| {
                 if state.routes.borrow().is_empty() {
                     let (outlet, disposer) = outlet(base_route.clone());
-                    std::mem::forget(disposer);
+                    std::mem::forget(disposer); // TODO
                     Some(outlet)
                 } else {
                     let root = state.routes.borrow();
                     let root = root.get(0);
-                    if let Some(route) = root {
-                        provide_context(route.clone());
-                    }
 
                     if prev.is_none() || !root_equal.get() {
                         root.as_ref()
                             .map(|route| {
                                 let (outlet, disposer) = outlet((*route).clone());
-                                std::mem::forget(disposer);
+                                std::mem::forget(disposer); // TODO
                                 outlet
                             })
                     } else {

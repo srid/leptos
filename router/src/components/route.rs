@@ -174,7 +174,7 @@ impl IntoView for RouteDefinition {
 /// Context type that contains information about the current, matched route.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RouteContext {
-    inner: Rc<RouteContextInner>,
+    pub(crate) inner: Rc<RouteContextInner>,
 }
 
 impl RouteContext {
@@ -222,8 +222,15 @@ impl RouteContext {
     ///
     /// e.g., this will return `/article/0` rather than `/article/:id`.
     /// For the opposite behavior, see [RouteContext::original_path].
+    #[track_caller]
     pub fn path(&self) -> String {
-        self.inner.path.get_untracked()
+        #[cfg(debug_assertions)]
+        let caller = std::panic::Location::caller();
+
+        self.inner.path.try_get_untracked().unwrap_or_else(|| {
+                leptos::debug_warn!("at {caller}, you call `.path()` on a `<Route/>` that has already been disposed");
+                Default::default()
+            })
     }
 
     pub(crate) fn set_path(&self, path: String) {
