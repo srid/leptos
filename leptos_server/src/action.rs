@@ -1,6 +1,6 @@
 use crate::{ServerFn, ServerFnError};
 use leptos_reactive::{
-    create_rw_signal, signal_prelude::*, spawn_local, store_value, ReadSignal,
+    batch, create_rw_signal, signal_prelude::*, spawn_local, store_value, ReadSignal,
     RwSignal, StoredValue,
 };
 use std::{cell::Cell, future::Future, pin::Pin, rc::Rc};
@@ -237,12 +237,11 @@ where
         let pending = self.pending;
         let pending_dispatches = Rc::clone(&self.pending_dispatches);
         let value = self.value;
-        let cx = self.cx;
         pending.set(true);
         pending_dispatches.set(pending_dispatches.get().saturating_sub(1));
         spawn_local(async move {
             let new_value = fut.await;
-            cx.batch(move || {
+            batch(move || {
                 value.set(Some(new_value));
                 input.set(None);
                 version.update(|n| *n += 1);

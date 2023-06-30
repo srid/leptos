@@ -1,7 +1,7 @@
 use leptos_dom::{Fragment, IntoView, View};
 use leptos_macro::component;
 use leptos_reactive::{
-    create_isomorphic_effect, use_context, Scope, SignalGet, SignalSetter,
+    create_isomorphic_effect, use_context, SignalGet, SignalSetter,
     SuspenseContext,
 };
 use std::{
@@ -132,7 +132,7 @@ where
                 child_runs.set(child_runs.get() + 1);
 
                 let pending = suspense_context.pending_resources;
-                create_isomorphic_effect(cx, move |_| {
+                create_isomorphic_effect(move |_| {
                     if let Some(set_pending) = set_pending {
                         set_pending.set(pending.get() > 0)
                     }

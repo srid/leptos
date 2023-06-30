@@ -1,61 +1,7 @@
 #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use crate::hydration::HydrationKey;
 use crate::{hydration::HydrationCtx, Comment, CoreComponent, IntoView, View};
-use leptos_reactive::Disposer;
-
-cfg_if! {
-  if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
-    use crate::{mount_child, prepare_to_move, MountKind, Mountable, RANGE};
-    use once_cell::unsync::OnceCell;
-    use leptos_reactive::create_effect;
-    use rustc_hash::FxHasher;
-    use std::hash::BuildHasherDefault;
-    use wasm_bindgen::JsCast;
-    use drain_filter_polyfill::VecExt as VecDrainFilterExt;
-
-#[cfg(all(target_arch = "wasm32", feature = "web"))]
-mod web {
-    pub(crate) use crate::{
-        mount_child, prepare_to_move, MountKind, Mountable, RANGE,
-    };
-    pub use drain_filter_polyfill::VecExt as VecDrainFilterExt;
-    pub use leptos_reactive::create_effect;
-    pub use std::cell::OnceCell;
-    pub use wasm_bindgen::JsCast;
-}
-
-#[cfg(all(target_arch = "wasm32", feature = "web"))]
-type FxIndexSet<T> =
-    indexmap::IndexSet<T, std::hash::BuildHasherDefault<rustc_hash::FxHasher>>;
-
-#[cfg(all(target_arch = "wasm32", feature = "web"))]
-trait VecExt {
-    fn get_next_closest_mounted_sibling(
-        &self,
-        start_at: usize,
-        or: web_sys::Node,
-    ) -> web_sys::Node;
-}
-
-#[cfg(all(target_arch = "wasm32", feature = "web"))]
-impl VecExt for Vec<Option<EachItem>> {
-    fn get_next_closest_mounted_sibling(
-        &self,
-        start_at: usize,
-        or: web_sys::Node,
-    ) -> web_sys::Node {
-        self[start_at..]
-          .iter()
-          .find_map(|s| s.as_ref().map(|s| s.get_opening_node()))
-          .unwrap_or(or)
-      }
-    }
-  } else {
-    use crate::hydration::HydrationKey;
-  }
-}
-use leptos_reactive::{with_current_owner};
->>>>>>> 760f36b7 (work on server rendering)
+use leptos_reactive::{Disposer, with_current_owner};
 use std::{borrow::Cow, cell::RefCell, fmt, hash::Hash, ops::Deref, rc::Rc};
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use web::*;
@@ -425,10 +371,10 @@ where
 
         let each_fn = with_current_owner(each_fn);
 
-        cfg_if::cfg_if! {
-          if #[cfg(all(target_arch = "wasm32", feature = "web"))] {
-            create_effect(move |prev_hash_run: Option<HashRun<FxIndexSet<K>>>| {
-              let mut children_borrow = children.borrow_mut();
+        #[cfg(all(target_arch = "wasm32", feature = "web"))]
+        create_effect(
+            move |prev_hash_run: Option<HashRun<FxIndexSet<K>>>| {
+                let mut children_borrow = children.borrow_mut();
 
                 #[cfg(all(target_arch = "wasm32", feature = "web"))]
                 let opening = if let Some(Some(child)) = children_borrow.get(0)
@@ -469,7 +415,6 @@ where
                         let cmds = diff(&prev_hash_run, &hashed_items);
 
                         apply_diff(
-                            cx,
                             #[cfg(all(
                                 target_arch = "wasm32",
                                 feature = "web"
@@ -495,13 +440,15 @@ where
                 let fragment = crate::document().create_document_fragment();
 
                 for item in items_iter {
-                  hashed_items.insert(key_fn(&item));
-                  let (child, disposer) = each_fn(item);
-                  let each_item = EachItem::new(disposer, child.into_view());
-                #[cfg(all(target_arch = "wasm32", feature = "web"))]
-                {
-                  _ = fragment.append_child(&each_item.get_mountable_node());
-                }
+                    hashed_items.insert(key_fn(&item));
+                    let (child, disposer) = each_fn(item);
+                    let each_item = EachItem::new(disposer, child.into_view());
+
+                    #[cfg(all(target_arch = "wasm32", feature = "web"))]
+                    {
+                        _ = fragment
+                            .append_child(&each_item.get_mountable_node());
+                    }
 
                     children_borrow.push(Some(each_item));
                 }
@@ -519,15 +466,12 @@ where
         #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
         {
             *component.children.borrow_mut() = (items_fn)()
-              .into_iter()
-              .map(|child| {
-                let (item, disposer) = each_fn(child);
-                Some(EachItem::new(disposer, item.into_view()))
-              })
-              // todo check scope disposal here
-              //.map(|child| cx.run_child_scope(|| Some(EachItem::new((each_fn)(child).into_view()))).0)
-              .collect();
-          }
+                .into_iter()
+                .map(|child| {
+                    let (item, disposer) = each_fn(child);
+                    Some(EachItem::new(disposer, item.into_view()))
+                })
+                .collect();
         }
 
         View::CoreComponent(CoreComponent::Each(component))
@@ -828,7 +772,7 @@ impl Default for DiffOpAddMode {
 }
 
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
-fn apply_cmds<T, EF, N>(
+fn apply_diff<T, EF, V>(
     opening: &web_sys::Node,
     closing: &web_sys::Node,
     diff: Diff,
@@ -836,8 +780,8 @@ fn apply_cmds<T, EF, N>(
     mut items: Vec<Option<T>>,
     each_fn: &EF,
 ) where
-    EF: Fn(T) -> (N, Disposer),
-    N: IntoView,
+    EF: Fn(T) -> (V, Disposer),
+    V: IntoView,
 {
     let range = RANGE.with(|range| (*range).clone());
 
@@ -925,11 +869,8 @@ fn apply_cmds<T, EF, N>(
     }
 
     for DiffOpAdd { at, mode } in add_cmds {
-        let (each_item, _) = cx.run_child_scope(|cx| {
-            let view = each_fn(cx, items[at].take().unwrap()).into_view(cx);
-
-            EachItem::new(cx, view)
-        });
+        let (item, disposer) = each_fn(items[at].take().unwrap());
+        let each_item = EachItem::new(disposer, item.into_view());
 
         match mode {
             DiffOpAddMode::Normal => {

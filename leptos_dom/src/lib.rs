@@ -32,7 +32,6 @@ use events::{add_event_listener, add_event_listener_undelegated};
 pub use html::HtmlElement;
 use html::{AnyElement, ElementDescriptor};
 pub use hydration::{HydrationCtx, HydrationKey};
-use leptos_reactive::Scope;
 #[cfg(not(feature = "nightly"))]
 use leptos_reactive::{
     MaybeSignal, Memo, ReadSignal, RwSignal, Signal, SignalGet,
