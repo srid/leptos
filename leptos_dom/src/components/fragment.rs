@@ -5,7 +5,7 @@ use crate::{
 /// Trait for converting any iterable into a [`Fragment`].
 pub trait IntoFragment {
     /// Consumes this type, returning [`Fragment`].
-    fn into_fragment(self, ) -> Fragment;
+    fn into_fragment(self) -> Fragment;
 }
 
 impl<I, V> IntoFragment for I
@@ -17,7 +17,7 @@ where
         any(debug_assertions, feature = "ssr"),
         instrument(level = "info", skip_all,)
     )]
-    fn into_fragment(self, ) -> Fragment {
+    fn into_fragment(self) -> Fragment {
         self.into_iter().map(|v| v.into_view()).collect()
     }
 }

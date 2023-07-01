@@ -23,7 +23,6 @@ use std::borrow::Cow;
 /// ```
 #[component(transparent)]
 pub fn Style(
-    
     /// An ID for the `<script>` tag.
     #[prop(optional, into)]
     id: Option<Cow<'static, str>>,

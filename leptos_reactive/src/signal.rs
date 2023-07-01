@@ -707,16 +707,24 @@ where
         #[cfg(debug_assertions)]
         let caller = std::panic::Location::caller();
 
-        self.id.try_with_no_subscription_by_id(self.runtime, f).unwrap_or_else(|_| {
-            #[cfg(not(debug_assertions))]
-            {panic!("tried to access ReadSignal that has been disposed")}
-            #[cfg(debug_assertions)]
-            {panic!("at {}, tried to access ReadSignal<{}> defined at {}, but it has already been disposed",
-            caller,
-            std::any::type_name::<T>(),
-            self.defined_at
-        )}
-    })
+        self.id
+            .try_with_no_subscription_by_id(self.runtime, f)
+            .unwrap_or_else(|_| {
+                #[cfg(not(debug_assertions))]
+                {
+                    panic!("tried to access ReadSignal that has been disposed")
+                }
+                #[cfg(debug_assertions)]
+                {
+                    panic!(
+                        "at {}, tried to access ReadSignal<{}> defined at {}, \
+                         but it has already been disposed",
+                        caller,
+                        std::any::type_name::<T>(),
+                        self.defined_at
+                    )
+                }
+            })
     }
 
     /// Applies the function to the current Signal, if it exists, and subscribes
@@ -1206,16 +1214,24 @@ impl<T: Clone> SignalGetUntracked<T> for RwSignal<T> {
         #[cfg(debug_assertions)]
         let caller = std::panic::Location::caller();
 
-        self.id.try_with_no_subscription_by_id(self.runtime, Clone::clone).unwrap_or_else(|_| {
-            #[cfg(not(debug_assertions))]
-            {panic!("tried to access RwSignal that has been disposed")}
-            #[cfg(debug_assertions)]
-            {panic!("at {}, tried to access RwSignal<{}> defined at {}, but it has already been disposed",
-            caller,
-            std::any::type_name::<T>(),
-            self.defined_at
-        )}
-    })
+        self.id
+            .try_with_no_subscription_by_id(self.runtime, Clone::clone)
+            .unwrap_or_else(|_| {
+                #[cfg(not(debug_assertions))]
+                {
+                    panic!("tried to access RwSignal that has been disposed")
+                }
+                #[cfg(debug_assertions)]
+                {
+                    panic!(
+                        "at {}, tried to access RwSignal<{}> defined at {}, \
+                         but it has already been disposed",
+                        caller,
+                        std::any::type_name::<T>(),
+                        self.defined_at
+                    )
+                }
+            })
     }
 
     #[cfg_attr(
@@ -1257,15 +1273,23 @@ impl<T> SignalWithUntracked<T> for RwSignal<T> {
     )]
     #[inline(always)]
     fn with_untracked<O>(&self, f: impl FnOnce(&T) -> O) -> O {
-        self.id.try_with_no_subscription_by_id(self.runtime, f).unwrap_or_else(|_| {
-            #[cfg(not(debug_assertions))]
-            {panic!("tried to access RwSignal that has been disposed")}
-            #[cfg(debug_assertions)]
-            {panic!("tried to access RwSignal<{}> defined at {}, but it has already been disposed",
-            std::any::type_name::<T>(),
-            self.defined_at
-        )}
-    })
+        self.id
+            .try_with_no_subscription_by_id(self.runtime, f)
+            .unwrap_or_else(|_| {
+                #[cfg(not(debug_assertions))]
+                {
+                    panic!("tried to access RwSignal that has been disposed")
+                }
+                #[cfg(debug_assertions)]
+                {
+                    panic!(
+                        "tried to access RwSignal<{}> defined at {}, but it \
+                         has already been disposed",
+                        std::any::type_name::<T>(),
+                        self.defined_at
+                    )
+                }
+            })
     }
 
     #[cfg_attr(

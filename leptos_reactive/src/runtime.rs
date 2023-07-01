@@ -132,7 +132,9 @@ impl Runtime {
 
     pub(crate) fn cleanup_node(&self, node_id: NodeId) {
         // first, run our cleanups, if any
-        if let Some(cleanups) = { self.on_cleanups.borrow_mut().remove(node_id) } {
+        if let Some(cleanups) =
+            { self.on_cleanups.borrow_mut().remove(node_id) }
+        {
             for cleanup in cleanups {
                 cleanup();
             }
@@ -190,10 +192,7 @@ impl Runtime {
         }
     }
 
-    pub(crate) fn cleanup_property(
-        &self,
-        property: ScopeProperty,
-    ) {
+    pub(crate) fn cleanup_property(&self, property: ScopeProperty) {
         // for signals, triggers, memos, effects, shared node cleanup
         match property {
             ScopeProperty::Signal(node)
@@ -805,7 +804,7 @@ impl Runtime {
         let root = ReactiveNode {
             value: None,
             state: ReactiveNodeState::Clean,
-            node_type: ReactiveNodeType::Trigger
+            node_type: ReactiveNodeType::Trigger,
         };
         let mut nodes: SlotMap<NodeId, ReactiveNode> = SlotMap::default();
         let root_id = nodes.insert(root);

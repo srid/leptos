@@ -1,6 +1,6 @@
 use leptos_dom::{DynChild, HydrationCtx, IntoView};
 use leptos_macro::component;
-use leptos_reactive::{provide_context, SuspenseContext, SharedContext};
+use leptos_reactive::{provide_context, SharedContext, SuspenseContext};
 use std::rc::Rc;
 
 /// If any [Resources](leptos_reactive::Resource) are read in the `children` of this

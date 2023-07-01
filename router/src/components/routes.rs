@@ -4,7 +4,8 @@ use crate::{
         expand_optionals, get_route_matches, join_paths, Branch, Matcher,
         RouteDefinition, RouteMatch,
     },
-    use_is_back_navigation, RouteContext, RouterContext, SetIsRouting, RouterContextInner,
+    use_is_back_navigation, RouteContext, RouterContext, RouterContextInner,
+    SetIsRouting,
 };
 use leptos::{leptos_dom::HydrationCtx, *};
 use std::{
@@ -53,17 +54,16 @@ pub fn Routes(
     let route_states = route_states(base, &router, current_route, &root_equal);
 
     let id = HydrationCtx::id();
-    let root_route = with_current_owner(move |(base_route, root_equal)| root_route(base_route, route_states, root_equal));
+    let root_route = with_current_owner(move |(base_route, root_equal)| {
+        root_route(base_route, route_states, root_equal)
+    });
     let (root, dis) = root_route((base_route, root_equal));
     std::mem::forget(dis);
 
-
-    leptos::leptos_dom::DynChild::new_with_id(id, move || {
-        root.get()
-    })
+    leptos::leptos_dom::DynChild::new_with_id(id, move || root.get())
         .into_view()
 }
-/* 
+/*
 /// Contains route definitions and manages the actual routing process, with animated transitions
 /// between routes.
 ///
@@ -293,30 +293,36 @@ fn route_states(
     let next: Rc<RefCell<Vec<RouteContext>>> = Default::default();
     let router = Rc::clone(&router.inner);
 
-    let create_route = with_current_owner(move |(router, next, matches, i): (Rc<RouterContextInner>, Rc<RefCell<Vec<RouteContext>>>, Memo<Rc<Vec<RouteMatch>>>, usize)| {
-        RouteContext::new(
-            &RouterContext {
-                inner: Rc::clone(&router),
-            },
-            {
-                let next = Rc::clone(&next);
-                move || {
-                    if let Some(route_states) =
-                        use_context::<Memo<RouterState>>()
-                    {
-                        route_states.with(|route_states| {
-                            let routes =
-                                route_states.routes.borrow();
-                            routes.get(i + 1).cloned()
-                        })
-                    } else {
-                        next.borrow().get(i + 1).cloned()
+    let create_route = with_current_owner(
+        move |(router, next, matches, i): (
+            Rc<RouterContextInner>,
+            Rc<RefCell<Vec<RouteContext>>>,
+            Memo<Rc<Vec<RouteMatch>>>,
+            usize,
+        )| {
+            RouteContext::new(
+                &RouterContext {
+                    inner: Rc::clone(&router),
+                },
+                {
+                    let next = Rc::clone(&next);
+                    move || {
+                        if let Some(route_states) =
+                            use_context::<Memo<RouterState>>()
+                        {
+                            route_states.with(|route_states| {
+                                let routes = route_states.routes.borrow();
+                                routes.get(i + 1).cloned()
+                            })
+                        } else {
+                            next.borrow().get(i + 1).cloned()
+                        }
                     }
-                }
-            },
-            move || matches.with(|m| m.get(i).cloned()),
-        )
-    });
+                },
+                move || matches.with(|m| m.get(i).cloned()),
+            )
+        },
+    );
 
     create_memo({
         let root_equal = Rc::clone(root_equal);
@@ -360,7 +366,12 @@ fn route_states(
                             root_equal.set(false);
                         }
 
-                        let (next_ctx, disposer) = create_route((Rc::clone(&router), Rc::clone(&next), matches, i));
+                        let (next_ctx, disposer) = create_route((
+                            Rc::clone(&router),
+                            Rc::clone(&next),
+                            matches,
+                            i,
+                        ));
                         std::mem::forget(disposer); // TODO
 
                         if let Some(next_ctx) = next_ctx {
@@ -428,15 +439,14 @@ fn root_route(
                     let root = root.get(0);
 
                     if prev.is_none() || !root_equal.get() {
-                        root.as_ref()
-                            .map(|route| {
-                                let (outlet, disposer) = outlet((*route).clone());
-                                drop(std::mem::replace(
-                                    &mut *root_disposer.borrow_mut(),
-                                    Some(disposer),
-                                ));
-                                outlet
-                            })
+                        root.as_ref().map(|route| {
+                            let (outlet, disposer) = outlet((*route).clone());
+                            drop(std::mem::replace(
+                                &mut *root_disposer.borrow_mut(),
+                                Some(disposer),
+                            ));
+                            outlet
+                        })
                     } else {
                         prev.cloned().unwrap()
                     }

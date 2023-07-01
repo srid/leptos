@@ -90,7 +90,6 @@ where
 /// ```
 #[component(transparent)]
 pub fn Title(
-    
     /// A function that will be applied to any text value before it’s set as the title.
     #[prop(optional, into)]
     formatter: Option<Formatter>,

@@ -26,7 +26,6 @@ use std::borrow::Cow;
 /// ```
 #[component(transparent)]
 pub fn Link(
-    
     /// The [`id`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link#attr-id) attribute.
     #[prop(optional, into)]
     id: Option<Cow<'static, str>>,

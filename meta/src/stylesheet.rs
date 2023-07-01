@@ -21,7 +21,6 @@ use leptos::*;
 /// ```
 #[component(transparent)]
 pub fn Stylesheet(
-    
     /// The URL at which the stylesheet is located.
     #[prop(into)]
     href: String,

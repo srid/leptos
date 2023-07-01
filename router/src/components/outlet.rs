@@ -1,6 +1,7 @@
 use crate::{
     animation::{Animation, AnimationState},
-    use_is_back_navigation, use_route, SetIsRouting, use_location, RouteContext,
+    use_is_back_navigation, use_location, use_route, RouteContext,
+    SetIsRouting,
 };
 use leptos::{leptos_dom::HydrationCtx, *};
 use std::{cell::Cell, rc::Rc};
@@ -18,10 +19,13 @@ pub fn Outlet() -> impl IntoView {
     let route = use_route();
     let location = use_location();
 
-    let child_id = create_memo({let route = route.clone(); move |_| {
-        location.pathname.track();
-        route.child().map(|child| child.id())
-    }});
+    let child_id = create_memo({
+        let route = route.clone();
+        move |_| {
+            location.pathname.track();
+            route.child().map(|child| child.id())
+        }
+    });
 
     let is_showing = Rc::new(Cell::new(None::<usize>));
     let (outlet, set_outlet) = create_signal(None::<View>);
@@ -49,8 +53,7 @@ pub fn Outlet() -> impl IntoView {
             (Some(child), _) => {
                 is_showing.set(Some(child.id()));
                 let (outlet, disposer) = build_outlet(child);
-                set_outlet
-                    .set(Some(outlet));
+                set_outlet.set(Some(outlet));
                 // returning the disposer keeps it alive until the next iteration
                 Some(disposer)
             }
@@ -96,7 +99,7 @@ pub fn Outlet() -> impl IntoView {
     leptos::leptos_dom::DynChild::new_with_id(id, move || outlet.get())
 }
 
-/* 
+/*
 /// Displays the child route nested in a parent route, allowing you to control exactly where
 /// that child route is displayed. Renders nothing if there is no nested child.
 ///

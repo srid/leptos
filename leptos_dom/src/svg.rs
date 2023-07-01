@@ -4,7 +4,6 @@
 use super::{html::HTML_ELEMENT_DEREF_UNIMPLEMENTED_MSG, HydrationKey};
 use super::{ElementDescriptor, HtmlElement};
 use crate::HydrationCtx;
-
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use once_cell::unsync::Lazy as LazyCell;
 use std::borrow::Cow;

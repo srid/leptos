@@ -106,8 +106,7 @@ pub use request_scope::*;
 pub use resource::*;
 use runtime::*;
 pub use runtime::{
-    batch, create_runtime, on_cleanup, untrack,
-    with_current_owner, RuntimeId,
+    batch, create_runtime, on_cleanup, untrack, with_current_owner, RuntimeId,
 };
 pub use selector::*;
 pub use serialization::*;

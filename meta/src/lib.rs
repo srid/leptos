@@ -129,7 +129,7 @@ impl MetaTagsContext {
     #[doc(hidden)]
     pub fn register(
         &self,
-        
+
         id: Cow<'static, str>,
         builder_el: HtmlElement<AnyElement>,
     ) {
@@ -214,8 +214,8 @@ pub fn use_head() -> MetaContext {
                 "use_head() is being called without a MetaContext being \
                  provided. We'll automatically create and provide one, but if \
                  this is being called in a child route it may cause bugs. To \
-                 be safe, you should provide_meta_context() somewhere in \
-                 the root of the app."
+                 be safe, you should provide_meta_context() somewhere in the \
+                 root of the app."
             );
             let meta = MetaContext::new();
             provide_context(meta.clone());

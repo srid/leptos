@@ -185,7 +185,9 @@ lazy_static::lazy_static! {
 pub struct LeptosServerFnRegistry;
 
 #[cfg(any(feature = "ssr", doc))]
-impl server_fn::ServerFunctionRegistry<RequestScope> for LeptosServerFnRegistry {
+impl server_fn::ServerFunctionRegistry<RequestScope>
+    for LeptosServerFnRegistry
+{
     type Error = ServerRegistrationFnError;
 
     fn register(
@@ -244,7 +246,9 @@ impl server_fn::ServerFunctionRegistry<RequestScope> for LeptosServerFnRegistry 
     }
 
     /// Returns the server function trait obj registered at the given URL, or `None` if no function is registered at that URL.
-    fn get_trait_obj(url: &str) -> Option<server_fn::ServerFnTraitObj<RequestScope>> {
+    fn get_trait_obj(
+        url: &str,
+    ) -> Option<server_fn::ServerFnTraitObj<RequestScope>> {
         REGISTERED_SERVER_FUNCTIONS
             .read()
             .ok()
@@ -347,7 +351,9 @@ pub fn server_fn_trait_obj_by_path(path: &str) -> Option<ServerFnTraitObj> {
 /// Get the Encoding of a server fn if one is registered at that path. Otherwise, return None
 #[cfg(any(feature = "ssr", doc))]
 pub fn server_fn_encoding_by_path(path: &str) -> Option<Encoding> {
-    server_fn::server_fn_encoding_by_path::<RequestScope, LeptosServerFnRegistry>(path)
+    server_fn::server_fn_encoding_by_path::<RequestScope, LeptosServerFnRegistry>(
+        path,
+    )
 }
 
 /// Returns the set of currently-registered server function paths, for debugging purposes.

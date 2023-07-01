@@ -66,7 +66,6 @@ use crate::{
     macro_helpers::{IntoAttribute, IntoClass, IntoProperty, IntoStyle},
     Element, Fragment, IntoView, NodeRef, Text, View,
 };
-
 use std::{borrow::Cow, fmt};
 
 /// Trait which allows creating an element tag.
@@ -90,14 +89,14 @@ pub trait ElementDescriptor: ElementDescriptorBounds {
 /// to [`HtmlElement`].
 pub trait ToHtmlElement {
     /// Converts the type to [`HtmlElement`].
-    fn to_leptos_element(self, ) -> HtmlElement<AnyElement>;
+    fn to_leptos_element(self) -> HtmlElement<AnyElement>;
 }
 
 impl<T> ToHtmlElement for T
 where
     T: AsRef<web_sys::Element>,
 {
-    fn to_leptos_element(self, ) -> HtmlElement<AnyElement> {
+    fn to_leptos_element(self) -> HtmlElement<AnyElement> {
         #[cfg(all(target_arch = "wasm32", feature = "web"))]
         {
             let el = self.as_ref().clone().unchecked_into();
@@ -378,7 +377,6 @@ impl<El: ElementDescriptor + 'static> HtmlElement<El> {
     #[doc(hidden)]
     #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
     pub fn from_chunks(
-        
         element: El,
         chunks: impl IntoIterator<Item = StringOrView>,
     ) -> Self {
@@ -943,7 +941,6 @@ impl<El: ElementDescriptor + 'static> HtmlElement<El> {
     /// # use leptos::*;
     /// #[component]
     /// pub fn Input(
-    ///     
     ///     #[prop(optional)] value: Option<RwSignal<String>>,
     /// ) -> impl IntoView {
     ///     view! {  <input/> }

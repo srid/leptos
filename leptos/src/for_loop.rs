@@ -1,6 +1,5 @@
 use leptos_dom::IntoView;
 use leptos_macro::component;
-
 use std::hash::Hash;
 
 /// Iterates over children and displays them, keyed by the `key` function given.

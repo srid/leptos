@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 use crate::{
-    runtime::PinnedFuture, suspense::StreamChunk, with_runtime, RequestScope, ResourceId,
-    Runtime, SuspenseContext,
+    runtime::PinnedFuture, suspense::StreamChunk, with_runtime, RequestScope,
+    ResourceId, Runtime, SuspenseContext,
 };
 use cfg_if::cfg_if;
 use futures::stream::FuturesUnordered;
@@ -138,7 +138,7 @@ impl SharedContext {
     )]
     pub fn blocking_fragments_ready() -> PinnedFuture<()> {
         let req = RequestScope::current();
-        
+
         use futures::StreamExt;
 
         let mut ready = with_runtime(Runtime::current(), |runtime| {

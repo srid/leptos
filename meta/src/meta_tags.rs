@@ -23,7 +23,6 @@ use leptos::{component, IntoView};
 /// ```
 #[component(transparent)]
 pub fn Meta(
-    
     /// The [`charset`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta#attr-charset) attribute.
     #[prop(optional, into)]
     charset: Option<TextProp>,

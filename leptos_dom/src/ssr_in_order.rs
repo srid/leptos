@@ -12,7 +12,8 @@ use cfg_if::cfg_if;
 use futures::{channel::mpsc::UnboundedSender, Stream, StreamExt};
 use itertools::Itertools;
 use leptos_reactive::{
-    create_runtime, suspense::StreamChunk, RequestScope, RuntimeId, SharedContext,
+    create_runtime, suspense::StreamChunk, RequestScope, RuntimeId,
+    SharedContext,
 };
 use std::{borrow::Cow, collections::VecDeque};
 

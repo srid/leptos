@@ -1,7 +1,7 @@
 //! A variety of DOM utility functions.
 
 use crate::{events::typed as ev, is_server, window};
-use leptos_reactive::{on_cleanup};
+use leptos_reactive::on_cleanup;
 use std::time::Duration;
 use wasm_bindgen::{prelude::Closure, JsCast, JsValue, UnwrapThrowExt};
 

@@ -1,7 +1,7 @@
 #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use crate::hydration::HydrationKey;
 use crate::{hydration::HydrationCtx, Comment, CoreComponent, IntoView, View};
-use leptos_reactive::{Disposer, with_current_owner};
+use leptos_reactive::{with_current_owner, Disposer};
 use std::{borrow::Cow, cell::RefCell, fmt, hash::Hash, ops::Deref, rc::Rc};
 #[cfg(all(target_arch = "wasm32", feature = "web"))]
 use web::*;
@@ -372,96 +372,86 @@ where
         let each_fn = with_current_owner(each_fn);
 
         #[cfg(all(target_arch = "wasm32", feature = "web"))]
-        create_effect(
-            move |prev_hash_run: Option<HashRun<FxIndexSet<K>>>| {
-                let mut children_borrow = children.borrow_mut();
+        create_effect(move |prev_hash_run: Option<HashRun<FxIndexSet<K>>>| {
+            let mut children_borrow = children.borrow_mut();
 
-                #[cfg(all(target_arch = "wasm32", feature = "web"))]
-                let opening = if let Some(Some(child)) = children_borrow.get(0)
+            #[cfg(all(target_arch = "wasm32", feature = "web"))]
+            let opening = if let Some(Some(child)) = children_borrow.get(0) {
+                // correctly remove opening <!--<EachItem/>-->
+                let child_opening = child.get_opening_node();
+                #[cfg(debug_assertions)]
                 {
-                    // correctly remove opening <!--<EachItem/>-->
-                    let child_opening = child.get_opening_node();
-                    #[cfg(debug_assertions)]
-                    {
-                        use crate::components::dyn_child::NonViewMarkerSibling;
-                        child_opening
-                            .previous_non_view_marker_sibling()
-                            .unwrap_or(child_opening)
-                    }
-                    #[cfg(not(debug_assertions))]
-                    {
-                        child_opening
-                    }
-                } else {
-                    closing.clone()
-                };
-
-                let items_iter = items_fn().into_iter();
-
-                let (capacity, _) = items_iter.size_hint();
-                let mut hashed_items = FxIndexSet::with_capacity_and_hasher(
-                    capacity,
-                    Default::default(),
-                );
-
-                if let Some(HashRun(prev_hash_run)) = prev_hash_run {
-                    if !prev_hash_run.is_empty() {
-                        let mut items = Vec::with_capacity(capacity);
-                        for item in items_iter {
-                            hashed_items.insert(key_fn(&item));
-                            items.push(Some(item));
-                        }
-
-                        let cmds = diff(&prev_hash_run, &hashed_items);
-
-                        apply_diff(
-                            #[cfg(all(
-                                target_arch = "wasm32",
-                                feature = "web"
-                            ))]
-                            &opening,
-                            #[cfg(all(
-                                target_arch = "wasm32",
-                                feature = "web"
-                            ))]
-                            &closing,
-                            cmds,
-                            &mut children_borrow,
-                            items,
-                            &each_fn,
-                        );
-                        return HashRun(hashed_items);
-                    }
+                    use crate::components::dyn_child::NonViewMarkerSibling;
+                    child_opening
+                        .previous_non_view_marker_sibling()
+                        .unwrap_or(child_opening)
                 }
+                #[cfg(not(debug_assertions))]
+                {
+                    child_opening
+                }
+            } else {
+                closing.clone()
+            };
 
-                // if previous run is empty
-                *children_borrow = Vec::with_capacity(capacity);
-                #[cfg(all(target_arch = "wasm32", feature = "web"))]
-                let fragment = crate::document().create_document_fragment();
+            let items_iter = items_fn().into_iter();
 
-                for item in items_iter {
-                    hashed_items.insert(key_fn(&item));
-                    let (child, disposer) = each_fn(item);
-                    let each_item = EachItem::new(disposer, child.into_view());
+            let (capacity, _) = items_iter.size_hint();
+            let mut hashed_items = FxIndexSet::with_capacity_and_hasher(
+                capacity,
+                Default::default(),
+            );
 
-                    #[cfg(all(target_arch = "wasm32", feature = "web"))]
-                    {
-                        _ = fragment
-                            .append_child(&each_item.get_mountable_node());
+            if let Some(HashRun(prev_hash_run)) = prev_hash_run {
+                if !prev_hash_run.is_empty() {
+                    let mut items = Vec::with_capacity(capacity);
+                    for item in items_iter {
+                        hashed_items.insert(key_fn(&item));
+                        items.push(Some(item));
                     }
 
-                    children_borrow.push(Some(each_item));
+                    let cmds = diff(&prev_hash_run, &hashed_items);
+
+                    apply_diff(
+                        #[cfg(all(target_arch = "wasm32", feature = "web"))]
+                        &opening,
+                        #[cfg(all(target_arch = "wasm32", feature = "web"))]
+                        &closing,
+                        cmds,
+                        &mut children_borrow,
+                        items,
+                        &each_fn,
+                    );
+                    return HashRun(hashed_items);
                 }
+            }
+
+            // if previous run is empty
+            *children_borrow = Vec::with_capacity(capacity);
+            #[cfg(all(target_arch = "wasm32", feature = "web"))]
+            let fragment = crate::document().create_document_fragment();
+
+            for item in items_iter {
+                hashed_items.insert(key_fn(&item));
+                let (child, disposer) = each_fn(item);
+                let each_item = EachItem::new(disposer, child.into_view());
 
                 #[cfg(all(target_arch = "wasm32", feature = "web"))]
-                closing
-                    .unchecked_ref::<web_sys::Element>()
-                    .before_with_node_1(&fragment)
-                    .expect("before to not err");
+                {
+                    _ = fragment.append_child(&each_item.get_mountable_node());
+                }
 
-                HashRun(hashed_items)
-            },
-        );
+                children_borrow.push(Some(each_item));
+            }
+
+            #[cfg(all(target_arch = "wasm32", feature = "web"))]
+            closing
+                .unchecked_ref::<web_sys::Element>()
+                .before_with_node_1(&fragment)
+                .expect("before to not err");
+
+            HashRun(hashed_items)
+        });
 
         #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
         {

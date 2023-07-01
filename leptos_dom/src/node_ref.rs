@@ -1,6 +1,7 @@
 use crate::{html::ElementDescriptor, HtmlElement};
 use leptos_reactive::{
-    create_effect, create_rw_signal, signal_prelude::*, RwSignal};
+    create_effect, create_rw_signal, signal_prelude::*, RwSignal,
+};
 use std::cell::Cell;
 
 /// Contains a shared reference to a DOM node created while using the `view`
@@ -71,9 +72,7 @@ pub struct NodeRef<T: ElementDescriptor + 'static>(
 /// }
 /// ```
 #[inline(always)]
-pub fn create_node_ref<T: ElementDescriptor + 'static>(
-    
-) -> NodeRef<T> {
+pub fn create_node_ref<T: ElementDescriptor + 'static>() -> NodeRef<T> {
     NodeRef(create_rw_signal(None))
 }
 
@@ -129,7 +128,7 @@ impl<T: ElementDescriptor + 'static> NodeRef<T> {
     /// Runs the provided closure when the `NodeRef` has been connected
     /// with it's [`HtmlElement`].
     #[inline(always)]
-    pub fn on_load<F>(self,  f: F)
+    pub fn on_load<F>(self, f: F)
     where
         T: Clone,
         F: FnOnce(HtmlElement<T>) + 'static,

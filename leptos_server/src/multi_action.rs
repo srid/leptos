@@ -350,7 +350,6 @@ where
     tracing::instrument(level = "trace", skip_all,)
 )]
 pub fn create_server_multi_action<S>(
-    
 ) -> MultiAction<S, Result<S::Output, ServerFnError>>
 where
     S: Clone + ServerFn,

@@ -2,17 +2,31 @@ use leptos::*;
 use leptos_router::*;
 
 #[server(OneSecondFn "/api")]
-async fn one_second_fn(query: ()) -> Result<(), ServerFnError> {
+async fn one_second_fn(cx: RequestScope) -> Result<String, ServerFnError> {
+    use actix_web::dev::ConnectionInfo;
+    use leptos_actix::extract;
+
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    Ok(())
+    Ok(extract(
+        cx,
+        |info: ConnectionInfo| async move { format!("{info:?}") },
+    )
+    .await?)
 }
 
 #[server(TwoSecondFn "/api")]
-async fn two_second_fn(query: ()) -> Result<(), ServerFnError> {
+async fn two_second_fn(cx: RequestScope) -> Result<String, ServerFnError> {
+    use actix_web::dev::ConnectionInfo;
+    use leptos_actix::extract;
+
     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-    Ok(())
+    Ok(extract(
+        cx,
+        |info: ConnectionInfo| async move { format!("{info:?}") },
+    )
+    .await?)
 }
 
 #[component]
@@ -115,8 +129,10 @@ fn SecondaryNav() -> impl IntoView {
 
 #[component]
 fn Nested() -> impl IntoView {
-    let one_second = create_resource(|| (), one_second_fn);
-    let two_second = create_resource(|| (), two_second_fn);
+    let one_second =
+        create_resource(|| (), |_| one_second_fn(Default::default()));
+    let two_second =
+        create_resource(|| (), |_| two_second_fn(Default::default()));
     let (count, set_count) = create_signal(0);
 
     view! {
@@ -145,7 +161,8 @@ fn Nested() -> impl IntoView {
 
 #[component]
 fn NestedResourceInside() -> impl IntoView {
-    let one_second = create_resource(|| (), one_second_fn);
+    let one_second =
+        create_resource(|| (), |_| one_second_fn(Default::default()));
     let (count, set_count) = create_signal(0);
 
     view! {
@@ -156,7 +173,7 @@ fn NestedResourceInside() -> impl IntoView {
                     one_second.read().map(|_| {
                         let two_second = create_resource(|| (), move |_| async move {
                             leptos::log!("creating two_second resource");
-                            two_second_fn(()).await
+                            two_second_fn(Default::default()).await
                         });
                         view! {
                             <p>{move || one_second.read().map(|_| "Loaded 1!")}</p>
@@ -182,8 +199,10 @@ fn NestedResourceInside() -> impl IntoView {
 
 #[component]
 fn Parallel() -> impl IntoView {
-    let one_second = create_resource(|| (), one_second_fn);
-    let two_second = create_resource(|| (), two_second_fn);
+    let one_second =
+        create_resource(|| (), |_| one_second_fn(Default::default()));
+    let two_second =
+        create_resource(|| (), |_| two_second_fn(Default::default()));
     let (count, set_count) = create_signal(0);
 
     view! {
@@ -217,7 +236,8 @@ fn Parallel() -> impl IntoView {
 
 #[component]
 fn Single() -> impl IntoView {
-    let one_second = create_resource(|| (), one_second_fn);
+    let one_second =
+        create_resource(|| (), |_| one_second_fn(Default::default()));
     let (count, set_count) = create_signal(0);
 
     view! {
@@ -258,7 +278,8 @@ fn InsideComponent() -> impl IntoView {
 
 #[component]
 fn InsideComponentChild() -> impl IntoView {
-    let one_second = create_resource(|| (), one_second_fn);
+    let one_second =
+        create_resource(|| (), |_| one_second_fn(Default::default()));
     view! {
         <Suspense fallback=|| "Loading 1...">
             "One Second: "
