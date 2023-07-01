@@ -132,7 +132,7 @@ impl Runtime {
 
     pub(crate) fn cleanup_node(&self, node_id: NodeId) {
         // first, run our cleanups, if any
-        if let Some(cleanups) = self.on_cleanups.borrow_mut().remove(node_id) {
+        if let Some(cleanups) = { self.on_cleanups.borrow_mut().remove(node_id) } {
             for cleanup in cleanups {
                 cleanup();
             }
@@ -141,16 +141,13 @@ impl Runtime {
         // dispose of any of our properties
         let properties = { self.node_properties.borrow_mut().remove(node_id) };
         if let Some(properties) = properties {
-            let mut nodes = self.nodes.borrow_mut();
-            let mut cleanups = self.on_cleanups.borrow_mut();
             for property in properties {
-                self.cleanup_property(property, &mut nodes, &mut cleanups);
+                self.cleanup_property(property);
             }
         }
     }
 
     pub(crate) fn update(&self, node_id: NodeId) {
-        //crate::macros::debug_warn!("updating {node_id:?}");
         let node = {
             let nodes = self.nodes.borrow();
             nodes.get(node_id).cloned()
@@ -182,9 +179,6 @@ impl Runtime {
                     let mut nodes = self.nodes.borrow_mut();
                     for sub_id in subs.borrow().iter() {
                         if let Some(sub) = nodes.get_mut(*sub_id) {
-                            //crate::macros::debug_warn!(
-                            //    "update is marking {sub_id:?} dirty"
-                            //);
                             sub.state = ReactiveNodeState::Dirty;
                         }
                     }
@@ -199,8 +193,6 @@ impl Runtime {
     pub(crate) fn cleanup_property(
         &self,
         property: ScopeProperty,
-        nodes: &mut SlotMap<NodeId, ReactiveNode>,
-        cleanups: &mut SparseSecondaryMap<NodeId, Vec<Box<dyn FnOnce()>>>,
     ) {
         // for signals, triggers, memos, effects, shared node cleanup
         match property {
@@ -211,11 +203,12 @@ impl Runtime {
                 let properties =
                     { self.node_properties.borrow_mut().remove(node) };
                 for property in properties.into_iter().flatten() {
-                    self.cleanup_property(property, nodes, cleanups);
+                    self.cleanup_property(property);
                 }
 
                 // run all cleanups for this node
-                for cleanup in cleanups.remove(node).into_iter().flatten() {
+                let cleanups = { self.on_cleanups.borrow_mut().remove(node) };
+                for cleanup in cleanups.into_iter().flatten() {
                     cleanup();
                 }
 
@@ -236,7 +229,8 @@ impl Runtime {
                 self.node_sources.borrow_mut().remove(node);
 
                 // remove the node from the graph
-                nodes.remove(node);
+                let node = { self.nodes.borrow_mut().remove(node) };
+                drop(node);
             }
             ScopeProperty::Resource(id) => {
                 self.resources.borrow_mut().remove(id);
@@ -280,7 +274,6 @@ impl Runtime {
     }
 
     fn mark_clean(&self, node: NodeId) {
-        //crate::macros::debug_warn!("marking {node:?} clean");
         let mut nodes = self.nodes.borrow_mut();
         if let Some(node) = nodes.get_mut(node) {
             node.state = ReactiveNodeState::Clean;
@@ -288,7 +281,6 @@ impl Runtime {
     }
 
     pub(crate) fn mark_dirty(&self, node: NodeId) {
-        //crate::macros::debug_warn!("marking {node:?} dirty");
         let mut nodes = self.nodes.borrow_mut();
 
         if let Some(current_node) = nodes.get_mut(node) {
@@ -413,15 +405,12 @@ impl Runtime {
         pending_effects: &mut Vec<NodeId>,
         current_observer: Option<NodeId>,
     ) {
-        //crate::macros::debug_warn!("marking {node_id:?} {level:?}");
         if level > node.state {
             node.state = level;
         }
 
         if matches!(node.node_type, ReactiveNodeType::Effect { .. } if current_observer != Some(node_id))
         {
-            //crate::macros::debug_warn!("pushing effect {node_id:?}");
-            //debug_assert!(!pending_effects.contains(&node_id));
             pending_effects.push(node_id)
         }
 
@@ -546,22 +535,9 @@ pub(crate) fn with_runtime<T>(
 }
 
 #[must_use = "Runtime will leak memory if Runtime::dispose() is never called."]
-/// Creates a new reactive [`Runtime`].
+/// Creates a new reactive [`Runtime`] and sets it as the current runtime.
 /// This should almost always be handled by the framework, not called directly in user code.
 pub fn create_runtime() -> RuntimeId {
-    cfg_if! {
-        if #[cfg(any(feature = "csr", feature = "hydrate"))] {
-            Default::default()
-        } else {
-            RUNTIMES.with(|runtimes| runtimes.borrow_mut().insert(Runtime::new()))
-        }
-    }
-}
-
-#[must_use = "Runtime will leak memory if Runtime::dispose() is never called."]
-/// Creates a new reactive [`Runtime`] and loads it as the current runtime.
-/// This should almost always be handled by the framework, not called directly in user code.
-pub fn enter_new_runtime() -> RuntimeId {
     cfg_if! {
         if #[cfg(any(feature = "csr", feature = "hydrate"))] {
             Default::default()
@@ -730,10 +706,6 @@ impl RuntimeId {
         let id = self.create_concrete_signal(
             Rc::new(RefCell::new(value)) as Rc<RefCell<dyn Any>>
         );
-        //crate::macros::debug_warn!(
-        //    "created RwSignal {id:?} at {:?}",
-        //    std::panic::Location::caller()
-        //);
         RwSignal {
             runtime: self,
             id,
@@ -830,7 +802,19 @@ impl RuntimeId {
 
 impl Runtime {
     pub fn new() -> Self {
-        Self::default()
+        let root = ReactiveNode {
+            value: None,
+            state: ReactiveNodeState::Clean,
+            node_type: ReactiveNodeType::Trigger
+        };
+        let mut nodes: SlotMap<NodeId, ReactiveNode> = SlotMap::default();
+        let root_id = nodes.insert(root);
+
+        Self {
+            owner: Cell::new(Some(root_id)),
+            nodes: RefCell::new(nodes),
+            ..Self::default()
+        }
     }
 
     pub(crate) fn create_unserializable_resource(

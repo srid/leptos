@@ -55,6 +55,8 @@ where
     T: Clone + 'static,
 {
     let id = value.type_id();
+    #[cfg(debug_assertions)]
+    let defined_at = std::panic::Location::caller();
 
     _ = with_runtime(Runtime::current(), |runtime| {
         let mut contexts = runtime.contexts.borrow_mut();
@@ -68,9 +70,8 @@ where
             context.insert(id, Box::new(value) as Box<dyn Any>);
         } else {
             crate::macros::debug_warn!(
-                "At {}, you are calling provide_context() outside the \
-                 reactive system.",
-                std::panic::Location::caller()
+                "At {defined_at}, you are calling provide_context() outside \
+                 the reactive system.",
             );
         }
     });

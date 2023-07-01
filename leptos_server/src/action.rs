@@ -1,6 +1,6 @@
 use crate::{ServerFn, ServerFnError};
 use leptos_reactive::{
-    batch, create_rw_signal, signal_prelude::*, spawn_local, store_value, ReadSignal,
+    batch, create_rw_signal, signal_prelude::*, spawn_local, store_value, ReadSignal, RequestScope,
     RwSignal, StoredValue,
 };
 use std::{cell::Cell, future::Future, pin::Pin, rc::Rc};
@@ -384,9 +384,10 @@ pub fn create_server_action<S>() -> Action<S, Result<S::Output, ServerFnError>>
 where
     S: Clone + ServerFn,
 {
+    let req = RequestScope::current();
     #[cfg(feature = "ssr")]
-    let c = move |args: &S| S::call_fn(args.clone(), ());
+    let c = move |args: &S| S::call_fn(args.clone(), req);
     #[cfg(not(feature = "ssr"))]
-    let c = move |args: &S| S::call_fn_client(args.clone(), ());
+    let c = move |args: &S| S::call_fn_client(args.clone(), req);
     create_action(c).using_server_fn::<S>()
 }

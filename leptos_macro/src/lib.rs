@@ -871,8 +871,8 @@ pub fn slot(args: proc_macro::TokenStream, s: TokenStream) -> TokenStream {
 #[proc_macro_error]
 pub fn server(args: proc_macro::TokenStream, s: TokenStream) -> TokenStream {
     let context = ServerContext {
-        ty: syn::parse_quote!(Scope),
-        path: syn::parse_quote!(::leptos::Scope),
+        ty: syn::parse_quote!(RequestScope),
+        path: syn::parse_quote!(::leptos::RequestScope),
     };
     match server_macro_impl(
         args.into(),

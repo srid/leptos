@@ -55,7 +55,8 @@ pub fn generate_route_list_inner<IV>(
 where
     IV: IntoView + 'static,
 {
-    let runtime = enter_new_runtime();
+    let runtime = create_runtime();
+
     let integration = ServerIntegration {
         path: "http://leptos.rs/".to_string(),
     };

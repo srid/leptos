@@ -36,7 +36,7 @@ where
     N: IntoView,
 {
     HydrationCtx::reset_id();
-    let runtime = leptos_reactive::enter_new_runtime();
+    let runtime = leptos_reactive::create_runtime();
 
     let html = f().into_view().render_to_string();
 
@@ -186,7 +186,7 @@ pub fn render_to_stream_with_prefix_undisposed_with_context_and_block_replacemen
     HydrationCtx::reset_id();
 
     // create the runtime
-    let runtime = enter_new_runtime();
+    let runtime = create_runtime();
 
     // Add additional context items
     additional_context();
@@ -261,7 +261,7 @@ pub fn render_to_stream_with_prefix_undisposed_with_context_and_block_replacemen
             }
         },
     )
-    .chain(ooo_body_stream_recurse(cx, fragments, serializers));
+    .chain(ooo_body_stream_recurse(fragments, serializers));
 
     (stream, runtime)
 }
@@ -281,48 +281,10 @@ fn ooo_body_stream_recurse(
         // such that individual resources can resolve before all fragments are done
         fragments.chain(resources).chain(
             futures::stream::once(async move {
-                let pending = Scope::pending_fragments();
+                let pending = SharedContext::pending_fragments();
                 if pending.len() > 0 {
                     let fragments = FuturesUnordered::new();
-                    let serializers = Scope::serialization_resolvers();
-                    for (fragment_id, data) in pending {
-                        fragments.push(Box::pin(async move {
-                            (fragment_id.clone(), data.out_of_order.await)
-                        })
-                            as Pin<Box<dyn Future<Output = (String, String)>>>);
-                    }
-                    Box::pin(ooo_body_stream_recurse(fragments, serializers))
-                        as Pin<Box<dyn Stream<Item = String>>>
-                } else {
-                    Box::pin(futures::stream::once(async move {
-                        Default::default()
-                    }))
-                }
-            })
-            .flatten(),
-        ),
-    )
-}
-
-fn ooo_body_stream_recurse(
-    fragments: FuturesUnordered<PinnedFuture<(String, String)>>,
-    serializers: FuturesUnordered<PinnedFuture<(ResourceId, String)>>,
-) -> Pin<Box<dyn Stream<Item = String>>> {
-    // resources and fragments
-    // stream HTML for each <Suspense/> as it resolves
-    let fragments = fragments_to_chunks(fragments);
-    // stream data for each Resource as it resolves
-    let resources = render_serializers(serializers);
-
-    Box::pin(
-        // TODO these should be combined again in a way that chains them appropriately
-        // such that individual resources can resolve before all fragments are done
-        fragments.chain(resources).chain(
-            futures::stream::once(async move {
-                let pending = Scope::pending_fragments();
-                if pending.len() > 0 {
-                    let fragments = FuturesUnordered::new();
-                    let serializers = Scope::serialization_resolvers();
+                    let serializers = SharedContext::serialization_resolvers();
                     for (fragment_id, data) in pending {
                         fragments.push(Box::pin(async move {
                             (fragment_id.clone(), data.out_of_order.await)

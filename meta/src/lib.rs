@@ -121,7 +121,7 @@ impl MetaTagsContext {
             .borrow()
             .iter()
             .map(|(_, (builder_el, _))| {
-                builder_el.clone().into_view(*cx).render_to_string(*cx)
+                builder_el.clone().into_view().render_to_string()
             })
             .collect()
     }

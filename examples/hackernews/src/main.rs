@@ -26,7 +26,12 @@ cfg_if! {
 
             let addr = conf.leptos_options.site_addr;
             // Generate the list of routes in your Leptos App
-            let routes = generate_route_list(|cx| view! { <App/> });
+
+            eprintln!("\n\ngenerating routes\n\n");
+
+            let routes = generate_route_list(|| view! { <App/> });
+
+            eprintln!("\n\ndone generating routes\n\n");
 
             HttpServer::new(move || {
                 let leptos_options = &conf.leptos_options;
@@ -36,7 +41,7 @@ cfg_if! {
                     .service(css)
                     .service(favicon)
                     .route("/api/{tail:.*}", leptos_actix::handle_server_fns())
-                    .leptos_routes(leptos_options.to_owned(), routes.to_owned(), |cx| view! { <App/> })
+                    .leptos_routes(leptos_options.to_owned(), routes.to_owned(), || view! { <App/> })
                     .service(Files::new("/", site_root))
                 //.wrap(middleware::Compress::default())
             })

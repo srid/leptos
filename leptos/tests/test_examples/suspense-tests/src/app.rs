@@ -41,57 +41,57 @@ pub fn App() -> impl IntoView {
                 <Routes>
                     <Route
                         path=""
-                        view=|cx| view! {  <Redirect path="/out-of-order"/> }
+                        view=|| view! {  <Redirect path="/out-of-order"/> }
                     />
                     // out-of-order
                     <Route
                         path="out-of-order"
-                        view=|cx| view! {
+                        view=|| view! {
                             <SecondaryNav/>
                             <h1>"Out-of-Order"</h1>
                             <Outlet/>
                         }
                     >
-                        <Route path="" view=|cx| view! {  <Nested/> }/>
-                        <Route path="inside" view=|cx| view! { <NestedResourceInside/> }/>
-                        <Route path="single" view=|cx| view! {  <Single/> }/>
-                        <Route path="parallel" view=|cx| view! {  <Parallel/> }/>
-                        <Route path="inside-component" view=|cx| view! {  <InsideComponent/> }/>
-                        <Route path="none" view=|cx| view! { <None/> }/>
+                        <Route path="" view=|| view! {  <Nested/> }/>
+                        <Route path="inside" view=|| view! { <NestedResourceInside/> }/>
+                        <Route path="single" view=|| view! {  <Single/> }/>
+                        <Route path="parallel" view=|| view! {  <Parallel/> }/>
+                        <Route path="inside-component" view=|| view! {  <InsideComponent/> }/>
+                        <Route path="none" view=|| view! { <None/> }/>
                     </Route>
                     // in-order
                     <Route
                         path="in-order"
                         ssr=SsrMode::InOrder
-                        view=|cx| view! {
+                        view=|| view! {
                             <SecondaryNav/>
                             <h1>"In-Order"</h1>
                             <Outlet/>
                         }
                     >
-                        <Route path="" view=|cx| view! {  <Nested/> }/>
-                        <Route path="inside" view=|cx| view! { <NestedResourceInside/> }/>
-                        <Route path="single" view=|cx| view! {  <Single/> }/>
-                        <Route path="parallel" view=|cx| view! {  <Parallel/> }/>
-                        <Route path="inside-component" view=|cx| view! {  <InsideComponent/> }/>
-                        <Route path="none" view=|cx| view! { cx, <None/> }/>
+                        <Route path="" view=|| view! {  <Nested/> }/>
+                        <Route path="inside" view=|| view! { <NestedResourceInside/> }/>
+                        <Route path="single" view=|| view! {  <Single/> }/>
+                        <Route path="parallel" view=|| view! {  <Parallel/> }/>
+                        <Route path="inside-component" view=|| view! {  <InsideComponent/> }/>
+                        <Route path="none" view=|| view! { <None/> }/>
                     </Route>
                     // async
                     <Route
                         path="async"
                         ssr=SsrMode::Async
-                        view=|cx| view! {
+                        view=|| view! {
                             <SecondaryNav/>
                             <h1>"Async"</h1>
                             <Outlet/>
                         }
                     >
-                        <Route path="" view=|cx| view! {  <Nested/> }/>
-                        <Route path="inside" view=|cx| view! { <NestedResourceInside/> }/>
-                        <Route path="single" view=|cx| view! {  <Single/> }/>
-                        <Route path="parallel" view=|cx| view! {  <Parallel/> }/>
-                        <Route path="inside-component" view=|cx| view! {  <InsideComponent/> }/>
-                        <Route path="none" view=|cx| view! { cx, <None/> }/>
+                        <Route path="" view=|| view! {  <Nested/> }/>
+                        <Route path="inside" view=|| view! { <NestedResourceInside/> }/>
+                        <Route path="single" view=|| view! {  <Single/> }/>
+                        <Route path="parallel" view=|| view! {  <Parallel/> }/>
+                        <Route path="inside-component" view=|| view! {  <InsideComponent/> }/>
+                        <Route path="none" view=|| view! { <None/> }/>
                     </Route>
                 </Routes>
             </main>
@@ -148,7 +148,7 @@ fn NestedResourceInside() -> impl IntoView {
     let one_second = create_resource(|| (), one_second_fn);
     let (count, set_count) = create_signal(0);
 
-    view! { cx,
+    view! {
         <div>
             <Suspense fallback=|| "Loading 1...">
                 "One Second: "
@@ -158,7 +158,7 @@ fn NestedResourceInside() -> impl IntoView {
                             leptos::log!("creating two_second resource");
                             two_second_fn(()).await
                         });
-                        view! { cx,
+                        view! {
                             <p>{move || one_second.read().map(|_| "Loaded 1!")}</p>
                             <Suspense fallback=|| "Loading 2...">
                                 "Two Second: "
@@ -271,9 +271,9 @@ fn InsideComponentChild() -> impl IntoView {
 
 #[component]
 fn None() -> impl IntoView {
-    let (count, set_count) = create_signal(cx, 0);
+    let (count, set_count) = create_signal(0);
 
-    view! { cx,
+    view! {
         <div>
             <Suspense fallback=|| "Loading 1...">
                 <div>"Children inside Suspense should hydrate properly."</div>

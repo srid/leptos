@@ -12,7 +12,7 @@ use cfg_if::cfg_if;
 use futures::{channel::mpsc::UnboundedSender, Stream, StreamExt};
 use itertools::Itertools;
 use leptos_reactive::{
-    enter_new_runtime, suspense::StreamChunk, RuntimeId, SharedContext,
+    create_runtime, suspense::StreamChunk, RequestScope, RuntimeId, SharedContext,
 };
 use std::{borrow::Cow, collections::VecDeque};
 
@@ -90,7 +90,8 @@ pub fn render_to_stream_in_order_with_prefix_undisposed_with_context(
     HydrationCtx::reset_id();
 
     // create the runtime
-    let runtime = enter_new_runtime();
+    let runtime = create_runtime();
+    let req = RequestScope::current();
 
     // add additional context
     additional_context();
@@ -102,20 +103,25 @@ pub fn render_to_stream_in_order_with_prefix_undisposed_with_context(
     let chunks = view.into_stream_chunks();
     let pending_resources =
         serde_json::to_string(&SharedContext::pending_resources()).unwrap();
-    let serializers = SharedContext::serialization_resolvers();
 
     let (tx, rx) = futures::channel::mpsc::unbounded();
     let (prefix_tx, prefix_rx) = futures::channel::oneshot::channel();
     leptos_reactive::spawn_local(async move {
+        req.enter();
         blocking_fragments_ready.await;
+        req.enter();
         let remaining_chunks = handle_blocking_chunks(tx.clone(), chunks).await;
+        req.enter();
         let prefix = prefix();
         prefix_tx.send(prefix).expect("to send prefix");
-        handle_chunks(cx, tx, remaining_chunks).await;
+        handle_chunks(req, tx, remaining_chunks).await;
+        req.enter();
     });
 
     let stream = futures::stream::once(async move {
+        req.enter();
         let prefix = prefix_rx.await.expect("to receive prefix");
+        req.enter();
         format!(
             r#"
         {prefix}
@@ -130,7 +136,8 @@ pub fn render_to_stream_in_order_with_prefix_undisposed_with_context(
     .chain(rx)
     .chain(
         futures::stream::once(async move {
-            let serializers = cx.serialization_resolvers();
+            req.enter();
+            let serializers = SharedContext::serialization_resolvers();
             render_serializers(serializers)
         })
         .flatten(),
@@ -183,7 +190,7 @@ async fn handle_blocking_chunks(
 #[tracing::instrument(level = "trace", skip_all)]
 #[async_recursion(?Send)]
 async fn handle_chunks(
-    cx: Scope,
+    req: RequestScope,
     tx: UnboundedSender<String>,
     chunks: VecDeque<StreamChunk>,
 ) {
@@ -197,8 +204,11 @@ async fn handle_chunks(
                     .expect("failed to send async HTML chunk");
 
                 // send the inner stream
+                req.enter();
                 let suspended = chunks.await;
-                handle_chunks(cx, tx.clone(), suspended).await;
+                req.enter();
+                handle_chunks(req, tx.clone(), suspended).await;
+                req.enter();
             }
         }
     }

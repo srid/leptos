@@ -82,6 +82,7 @@ mod effect;
 mod hydration;
 mod memo;
 mod node;
+mod request_scope;
 mod resource;
 mod runtime;
 mod selector;
@@ -101,10 +102,11 @@ pub use effect::*;
 pub use hydration::{FragmentData, SharedContext};
 pub use memo::*;
 pub use node::Disposer;
+pub use request_scope::*;
 pub use resource::*;
 use runtime::*;
 pub use runtime::{
-    batch, create_runtime, enter_new_runtime, on_cleanup, untrack,
+    batch, create_runtime, on_cleanup, untrack,
     with_current_owner, RuntimeId,
 };
 pub use selector::*;

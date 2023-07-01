@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 use crate::{
-    runtime::PinnedFuture, suspense::StreamChunk, with_runtime, ResourceId,
+    runtime::PinnedFuture, suspense::StreamChunk, with_runtime, RequestScope, ResourceId,
     Runtime, SuspenseContext,
 };
 use cfg_if::cfg_if;
@@ -65,6 +65,7 @@ impl SharedContext {
         out_of_order_resolver: impl FnOnce() -> String + 'static,
         in_order_resolver: impl FnOnce() -> VecDeque<StreamChunk> + 'static,
     ) {
+        let req = RequestScope::current();
         use crate::create_isomorphic_effect;
         use futures::StreamExt;
 
@@ -91,16 +92,22 @@ impl SharedContext {
                 key.to_string(),
                 FragmentData {
                     out_of_order: Box::pin(async move {
+                        req.enter();
                         rx1.next().await;
+                        req.enter();
                         out_of_order_resolver()
                     }),
                     in_order: Box::pin(async move {
+                        req.enter();
                         rx2.next().await;
+                        req.enter();
                         in_order_resolver()
                     }),
                     should_block: context.should_block(),
                     is_ready: Some(Box::pin(async move {
+                        req.enter();
                         rx3.next().await;
+                        req.enter();
                     })),
                 },
             );
@@ -130,6 +137,8 @@ impl SharedContext {
         instrument(level = "trace", skip_all,)
     )]
     pub fn blocking_fragments_ready() -> PinnedFuture<()> {
+        let req = RequestScope::current();
+        
         use futures::StreamExt;
 
         let mut ready = with_runtime(Runtime::current(), |runtime| {
@@ -145,7 +154,13 @@ impl SharedContext {
             ready
         })
         .unwrap_or_default();
-        Box::pin(async move { while ready.next().await.is_some() {} })
+        Box::pin(async move {
+            req.enter();
+            while ready.next().await.is_some() {
+                req.enter();
+            }
+            req.enter();
+        })
     }
 
     /// The set of all HTML fragments currently pending.
