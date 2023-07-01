@@ -377,7 +377,7 @@ where
     let input = action.input();
 
     let on_error = Rc::new(move |e: &gloo_net::Error| {
-        cx.batch(move || {
+        batch(move || {
             action.set_pending(false);
             let e = ServerFnError::Request(e.to_string());
             value.try_set(Some(Err(e.clone())));
@@ -391,7 +391,7 @@ where
         let data = I::from_form_data(form_data);
         match data {
             Ok(data) => {
-                cx.batch(move || {
+                batch(move || {
                     input.try_set(Some(data));
                     action.set_pending(true);
                 });
@@ -399,7 +399,7 @@ where
             Err(e) => {
                 error!("{e}");
                 let e = ServerFnError::Serialization(e.to_string());
-                cx.batch(move || {
+                batch(move || {
                     value.try_set(Some(Err(e.clone())));
                     if let Some(error) = error {
                         error
